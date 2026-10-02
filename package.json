@@ -9,6 +9,7 @@
     "validate": "cargo run -p shallgraph -- validate",
     "format": "cargo run -p shallgraph -- format",
     "html": "cargo run -p shallgraph -- html",
+    "markdown": "cargo run -p shallgraph -- markdown",
     "bootstrap": "cargo run -p shallgraph -- bootstrap",
     "test": "jest"
   },

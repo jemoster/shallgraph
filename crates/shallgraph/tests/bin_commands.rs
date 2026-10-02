@@ -1,5 +1,7 @@
 //! End-to-end binary tests for the essential CLI (GRD-CLI-008).
 
+extern crate shallgraph_macros as shallgraph;
+
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
@@ -29,6 +31,14 @@ fn help_lists_format_command() {
     assert!(out.status.success());
     let text = String::from_utf8_lossy(&out.stdout);
     assert!(text.contains("format"));
+}
+
+#[test]
+fn help_lists_markdown_command() {
+    let out = Command::new(bin()).arg("--help").output().unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("markdown"));
 }
 
 #[test]
@@ -127,6 +137,67 @@ fn html_dot_output_prints_normalized_path() {
     );
 }
 
+#[shallgraph::verifies("GRD-CLI-010")]
+#[test]
+fn markdown_writes_index() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-md-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "markdown",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let md = fs::read_to_string(tmp.join("index.md")).unwrap();
+    assert!(md.contains("# Requirements"));
+    assert!(md.contains("SYS-001") || md.contains("FR-"));
+}
+
+#[test]
+fn markdown_dot_output_prints_normalized_path() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-md-dot-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .current_dir(&tmp)
+        .args([
+            "markdown",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            ".",
+        ])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        out.status.success(),
+        "markdown failed: stdout={stdout} stderr={stderr}"
+    );
+    let expected = tmp.join("index.md");
+    assert!(
+        stdout.contains(&format!("Wrote {}", expected.display())),
+        "expected normalized path in stdout, got {stdout}"
+    );
+    assert!(
+        !stdout.contains("/./"),
+        "output path should not contain /./, got {stdout}"
+    );
+}
+
 #[test]
 fn validate_sample_project_rust() {
     let root = repo_root();
@@ -191,6 +262,60 @@ fn html_sample_project_rust_includes_source_links() {
             detail.contains("source-link-item\">test"),
             "{id} missing test source link"
         );
+        assert!(
+            !detail.contains("Implemented by"),
+            "{id} still has Implemented by"
+        );
+    }
+}
+
+#[test]
+fn markdown_sample_project_rust_includes_source_links() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-md-rust-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "markdown",
+            "--project-dir",
+            root.join("sample_projects/rust").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    let md = fs::read_to_string(tmp.join("index.md")).unwrap();
+    for id in ["TEMP-001", "TEMP-002"] {
+        let start = md
+            .find(&format!("<a id=\"{id}\"></a>"))
+            .unwrap_or_else(|| panic!("missing detail section for {id}"));
+        let end = md[start..]
+            .find("\n<a id=\"")
+            .map(|i| start + i)
+            .unwrap_or(md.len());
+        let detail = &md[start..end];
+        assert!(
+            detail.contains("**Satisfied by**"),
+            "{id} missing Satisfied by"
+        );
+        assert!(detail.contains("*By comment*"), "{id} missing By comment");
+        assert!(detail.contains("*Rust*"), "{id} missing Rust origin");
+        assert!(
+            detail.contains("**Verified by**"),
+            "{id} missing Verified by"
+        );
+        assert!(detail.contains("`src/lib.rs`"), "{id} missing src/lib.rs");
+        assert!(
+            detail.contains("function"),
+            "{id} missing function source link"
+        );
+        assert!(detail.contains("test"), "{id} missing test source link");
         assert!(
             !detail.contains("Implemented by"),
             "{id} still has Implemented by"

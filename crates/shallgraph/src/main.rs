@@ -2,7 +2,7 @@
 
 use clap::{Parser, Subcommand, ValueEnum};
 use shallgraph_cli::{
-    run_bootstrap, run_format, run_html, run_schema, run_validate, BootstrapOptions,
+    run_bootstrap, run_format, run_html, run_markdown, run_schema, run_validate, BootstrapOptions,
     SchemaOutputFormat,
 };
 use std::io::{self, IsTerminal, Write};
@@ -19,6 +19,7 @@ Commands:\n  \
   validate   Check requirement files for schema, duplicate IDs, and broken links\n  \
   format     Rewrite requirement YAML files to canonical formatting\n  \
   html       Generate an HTML report of all requirements\n  \
+  markdown   Generate a Markdown report of all requirements\n  \
   schema     Print the requirement schema for the current project (JSON Schema or YAML)\n  \
   bootstrap  Initialize a directory with shallgraph.yaml and a requirements folder"
 )]
@@ -40,6 +41,12 @@ enum Command {
     /// Generate an HTML report of all requirements
     Html {
         /// Output directory for index.html (default: .)
+        #[arg(short = 'o', long = "output", default_value = ".", value_name = "DIR")]
+        output: PathBuf,
+    },
+    /// Generate a Markdown report of all requirements
+    Markdown {
+        /// Output directory for index.md (default: .)
         #[arg(short = 'o', long = "output", default_value = ".", value_name = "DIR")]
         output: PathBuf,
     },
@@ -112,6 +119,13 @@ fn main() -> ExitCode {
             }
         },
         Command::Html { output } => match run_html(&project_dir, &output) {
+            Ok(ok) => ok,
+            Err(err) => {
+                eprintln!("{err}");
+                false
+            }
+        },
+        Command::Markdown { output } => match run_markdown(&project_dir, &output) {
             Ok(ok) => ok,
             Err(err) => {
                 eprintln!("{err}");

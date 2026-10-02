@@ -3,8 +3,8 @@
 extern crate shallgraph_macros as shallgraph;
 
 use shallgraph_cli::{
-    run_bootstrap, run_format, run_html, run_html_with_github, run_schema, run_validate,
-    BootstrapOptions, SchemaOutputFormat,
+    run_bootstrap, run_format, run_html, run_html_with_github, run_markdown,
+    run_markdown_with_github, run_schema, run_validate, BootstrapOptions, SchemaOutputFormat,
 };
 use shallgraph_core::GithubArtifactLinkContext;
 use shallgraph_core::ROOT_MARKER;
@@ -296,6 +296,166 @@ fn html_leaves_paths_unlinked_without_github_origin() {
     assert!(!html.contains("href=\"https://github.com"));
     assert!(!html.contains("cursor://"));
     assert!(!html.contains("vscode://"));
+}
+
+#[shallgraph::verifies("GRD-CLI-010")]
+#[test]
+fn validate_and_markdown_on_temp_project() {
+    let tmp = temp_dir();
+    fs::write(
+        tmp.join(ROOT_MARKER),
+        "requirement_dirs:\n  - requirements\n",
+    )
+    .unwrap();
+    let reqs = tmp.join("requirements");
+    fs::create_dir_all(&reqs).unwrap();
+    fs::write(
+        reqs.join("DEMO-001.req.yml"),
+        "id: DEMO-001\ntitle: Demo\nrequire: The system shall demonstrate validation.\n",
+    )
+    .unwrap();
+
+    assert!(run_validate(&tmp).unwrap());
+
+    let out = tmp.join("md-out");
+    assert!(run_markdown(&tmp, &out).unwrap());
+    let md = fs::read_to_string(out.join("index.md")).unwrap();
+    assert!(md.contains("DEMO-001"));
+    assert!(md.contains("Requirements"));
+    assert!(md.contains("**Require**"));
+}
+
+#[shallgraph::verifies("GRD-MD-007")]
+#[test]
+fn markdown_presents_source_links_from_rust_attributes() {
+    let tmp = temp_dir();
+    fs::write(
+        tmp.join(ROOT_MARKER),
+        "requirement_dirs:\n  - requirements\n",
+    )
+    .unwrap();
+    let reqs = tmp.join("requirements");
+    fs::create_dir_all(&reqs).unwrap();
+    fs::write(
+        reqs.join("DEMO-001.req.yml"),
+        "id: DEMO-001\ntitle: Demo\nrequire: The system shall demonstrate validation.\n",
+    )
+    .unwrap();
+    let src = tmp.join("src");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(
+        src.join("lib.rs"),
+        r#"#[shallgraph::implements("DEMO-001")]
+fn demo() {}
+
+#[shallgraph::verifies("DEMO-001")]
+#[test]
+fn checks_demo() {}
+"#,
+    )
+    .unwrap();
+
+    let out = tmp.join("md-out");
+    assert!(run_markdown(&tmp, &out).unwrap());
+    let md = fs::read_to_string(out.join("index.md")).unwrap();
+    let start = md.find("<a id=\"DEMO-001\"></a>").unwrap();
+    let end = md[start..]
+        .find("\n<a id=\"")
+        .map(|i| start + i)
+        .unwrap_or(md.len());
+    let detail = &md[start..end];
+    assert!(detail.contains("**Satisfied by**"));
+    assert!(detail.contains("*Rust*"));
+    assert!(detail.contains("`src/lib.rs`"));
+    assert!(detail.contains("function"));
+    assert!(detail.contains("**Verified by**"));
+    assert!(detail.contains("test"));
+    assert!(!detail.contains("Implemented by"));
+}
+
+#[shallgraph::verifies("GRD-MD-008")]
+#[test]
+fn markdown_uses_github_blob_links_when_context_is_provided() {
+    let tmp = temp_dir();
+    fs::write(
+        tmp.join(ROOT_MARKER),
+        "requirement_dirs:\n  - requirements\n",
+    )
+    .unwrap();
+    let reqs = tmp.join("requirements");
+    fs::create_dir_all(&reqs).unwrap();
+    fs::write(
+        reqs.join("DEMO-001.req.yml"),
+        "id: DEMO-001\ntitle: Demo\nrequire: The system shall demonstrate validation.\nsatisfied_by:\n  - artifact: src/lib.rs\n",
+    )
+    .unwrap();
+    let src = tmp.join("src");
+    fs::create_dir_all(&src).unwrap();
+    fs::write(
+        src.join("lib.rs"),
+        r#"#[shallgraph::implements("DEMO-001")]
+fn demo() {}
+"#,
+    )
+    .unwrap();
+
+    let project_root = tmp
+        .canonicalize()
+        .unwrap()
+        .to_string_lossy()
+        .replace('\\', "/");
+    let github = GithubArtifactLinkContext {
+        owner: "acme".into(),
+        repo: "widgets".into(),
+        commit_sha: "deadbeef".into(),
+        project_root: project_root.clone(),
+        ..Default::default()
+    };
+    let out_gh = tmp.join("md-gh");
+    assert!(run_markdown_with_github(&tmp, &out_gh, |_| Some(github.clone())).unwrap());
+    let md = fs::read_to_string(out_gh.join("index.md")).unwrap();
+    let start = md.find("<a id=\"DEMO-001\"></a>").unwrap();
+    let end = md[start..]
+        .find("\n<a id=\"")
+        .map(|i| start + i)
+        .unwrap_or(md.len());
+    let detail = &md[start..end];
+    assert!(detail.contains("](https://github.com/acme/widgets/blob/deadbeef/"));
+    assert!(detail.contains("src/lib.rs"));
+    assert!(detail.contains("DEMO-001.req.yml"));
+    assert!(!detail.contains("cursor://"));
+    assert!(!detail.contains("vscode://"));
+
+    let out_plain = tmp.join("md-plain");
+    assert!(run_markdown_with_github(&tmp, &out_plain, |_| None).unwrap());
+    let plain = fs::read_to_string(out_plain.join("index.md")).unwrap();
+    assert!(!plain.contains("github.com/acme/widgets"));
+    assert!(plain.contains("`src/lib.rs`"));
+}
+
+#[shallgraph::verifies("GRD-MD-008")]
+#[test]
+fn markdown_leaves_paths_unlinked_without_github_origin() {
+    let tmp = temp_dir();
+    fs::write(
+        tmp.join(ROOT_MARKER),
+        "requirement_dirs:\n  - requirements\n",
+    )
+    .unwrap();
+    let reqs = tmp.join("requirements");
+    fs::create_dir_all(&reqs).unwrap();
+    fs::write(
+        reqs.join("DEMO-001.req.yml"),
+        "id: DEMO-001\ntitle: Demo\nrequire: The system shall demonstrate validation.\n",
+    )
+    .unwrap();
+
+    let out = tmp.join("md-plain");
+    assert!(run_markdown(&tmp, &out).unwrap());
+    let md = fs::read_to_string(out.join("index.md")).unwrap();
+    assert!(!md.contains("](https://github.com"));
+    assert!(!md.contains("cursor://"));
+    assert!(!md.contains("vscode://"));
 }
 
 #[shallgraph::verifies("GRD-CLI-006")]

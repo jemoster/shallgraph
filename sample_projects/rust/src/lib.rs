@@ -1,7 +1,7 @@
 //! Tiny temperature converter used as a shallgraph tracing example.
 //!
 //! Tag implementation with `#[shallgraph::implements]` and tests with
-//! `#[shallgraph::verifies]` so `shallgraph html` can list source links.
+//! `#[shallgraph::verifies]` so `shallgraph html` and `shallgraph markdown` can list source links.
 
 extern crate shallgraph_macros as shallgraph;
 

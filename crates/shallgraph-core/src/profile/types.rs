@@ -35,6 +35,13 @@ pub trait RequirementProfile: Send + Sync {
         source_links: &[SourceLink],
         artifact_links: Option<&ArtifactLinkRenderOptions>,
     ) -> String;
+    /// GRD-MD-001 / GRD-SYS-010: Full Markdown report. GRD-MD-008: `artifact_links` may include GitHub blob URLs.
+    fn generate_full_markdown(
+        &self,
+        requirements: &[RequirementWithSource],
+        source_links: &[SourceLink],
+        artifact_links: Option<&ArtifactLinkRenderOptions>,
+    ) -> String;
     /// GRD-VSC-003 / GRD-SYS-010: Single-requirement HTML using the same detail rendering as the full report.
     /// GRD-UI-009: `artifact_links` optionally turns project-relative artifact paths into GitHub blob URLs.
     fn generate_single_requirement_html(
