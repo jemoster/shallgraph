@@ -5,4 +5,4 @@ attributes:
   rationale: As a user I want to navigate up and down the graph of requirements.
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001

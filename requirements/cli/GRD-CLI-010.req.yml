@@ -10,15 +10,15 @@ refinement: |
 attributes:
   rationale: Stakeholders and teams need a shareable, readable Markdown report of requirements that can be committed, reviewed, and rendered without running the tool.
   status: active
-links:
-  - satisfies: GRD-CLI-001
 satisfied_by:
-  - artifact: crates/shallgraph/src/markdown.rs
-    description: CLI Markdown report command writes index.md using the active profile.
-  - artifact: crates/shallgraph/src/main.rs
-    description: Exposes the markdown subcommand with --output.
+- artifact: crates/shallgraph/src/markdown.rs
+  description: CLI Markdown report command writes index.md using the active profile.
+- artifact: crates/shallgraph/src/main.rs
+  description: Exposes the markdown subcommand with --output.
 verified_by:
-  - artifact: crates/shallgraph/tests/cli.rs
-    description: Library-level tests for Markdown export, source links, and GitHub file links.
-  - artifact: crates/shallgraph/tests/bin_commands.rs
-    description: Binary tests for markdown help, sample project export, and rust source links.
+- artifact: crates/shallgraph/tests/cli.rs
+  description: Library-level tests for Markdown export, source links, and GitHub file links.
+- artifact: crates/shallgraph/tests/bin_commands.rs
+  description: Binary tests for markdown help, sample project export, and rust source links.
+links:
+- satisfies: GRD-CLI-001

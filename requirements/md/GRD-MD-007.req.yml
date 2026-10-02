@@ -21,6 +21,6 @@ attributes:
   rationale: One Satisfied by heading and one Verified by heading keep implementation and verification together while origin sub-headings show whether an item came from the requirement file or from Rust source.
   status: active
 links:
-  - satisfies: GRD-MD-001
-  - satisfies: GRD-SYS-016
-  - satisfies: GRD-SYS-017
+- satisfies: GRD-MD-001
+- satisfies: GRD-SYS-016
+- satisfies: GRD-SYS-017

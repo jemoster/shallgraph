@@ -5,4 +5,4 @@ attributes:
   rationale: Allow rich formatting in requirement text for readability.
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001

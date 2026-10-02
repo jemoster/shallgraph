@@ -6,8 +6,8 @@ attributes:
   rationale: Markdown output is easily consumed in repositories, pull requests, and documentation tools outside of a coding environment.
   status: active
 satisfied_by:
-  - artifact: crates/shallgraph-core/src/markdown.rs
-    description: Full Markdown report generator for the loaded requirement set.
+- artifact: crates/shallgraph-core/src/markdown.rs
+  description: Full Markdown report generator for the loaded requirement set.
 verified_by:
-  - artifact: crates/shallgraph-core/src/markdown.rs
-    description: Unit tests cover index, details, attributes, and parameter values.
+- artifact: crates/shallgraph-core/src/markdown.rs
+  description: Unit tests cover index, details, attributes, and parameter values.

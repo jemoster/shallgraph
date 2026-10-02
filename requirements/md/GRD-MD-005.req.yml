@@ -6,4 +6,4 @@ attributes:
   rationale: A table layout provides clear alignment of names and values and scales better when a requirement has many parameters.
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001

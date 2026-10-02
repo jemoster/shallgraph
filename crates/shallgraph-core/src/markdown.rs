@@ -857,8 +857,9 @@ mod tests {
         )]));
         let md = generate_full_markdown(&[r]);
         assert!(md.contains("**42**"));
-        assert!(md.contains("Limit is **42**"));
-        assert!(md.contains("The maximum count is **42** items."));
+        assert!(md.contains("Limit is"));
+        assert!(md.contains("The maximum count is"));
+        assert!(md.contains("[**42**](#GRD-P-001)"));
     }
 
     #[shallgraph::verifies("GRD-MD-007")]

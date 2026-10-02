@@ -19,4 +19,4 @@ attributes:
   rationale: A static Markdown report is often viewed on GitHub or in a Markdown previewer. GitHub deep links at HEAD make repository-backed projects actionable from the report.
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001

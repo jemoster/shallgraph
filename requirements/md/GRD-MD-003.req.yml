@@ -6,4 +6,4 @@ attributes:
   rationale: Simplify navigation by grouping requirements.
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001

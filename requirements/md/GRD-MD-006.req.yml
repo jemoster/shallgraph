@@ -5,4 +5,4 @@ refinement: This applies to requirement prose content, including require, refine
 attributes:
   status: active
 links:
-  - satisfies: GRD-MD-001
+- satisfies: GRD-MD-001
