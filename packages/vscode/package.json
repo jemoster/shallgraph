@@ -1,6 +1,6 @@
 {
   "name": "shallgraph-vscode",
-  "version": "0.7.2",
+  "version": "0.8.0",
   "description": "Follow links in requirement files",
   "main": "dist/extension.js",
   "scripts": {
@@ -39,7 +39,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@shallgraph/core": "0.7.2",
+    "@shallgraph/core": "0.8.0",
     "@toast-ui/editor": "^3.2.2",
     "yaml": "^2.6.1"
   },

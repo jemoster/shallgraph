@@ -333,7 +333,7 @@ dependencies = [
 
 [[package]]
 name = "shallgraph"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "clap",
  "serde_json",
@@ -344,7 +344,7 @@ dependencies = [
 
 [[package]]
 name = "shallgraph-core"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "indexmap",
  "proc-macro2",
@@ -361,7 +361,7 @@ dependencies = [
 
 [[package]]
 name = "shallgraph-macros"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -370,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "shallgraph-wasm"
-version = "0.7.2"
+version = "0.8.0"
 dependencies = [
  "indexmap",
  "serde",
