@@ -25,7 +25,7 @@ cargo run -p shallgraph -- markdown --project-dir sample_projects/rust --output 
 The `shallgraph-macros` crate is a path dependency on this workspace (same macros the latest release collects). In your own project, pin the macros crate to that release:
 
 ```toml
-shallgraph-macros = { git = "https://github.com/jemoster/shallgraph", tag = "v0.5.0" }
+shallgraph-macros = { git = "https://github.com/jemoster/shallgraph", tag = "v0.8.0" }
 ```
 
 ## Run the tests
