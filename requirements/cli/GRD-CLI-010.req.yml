@@ -1,0 +1,14 @@
+id: GRD-CLI-010
+title: CLI Markdown report
+require: The CLI shall generate a static Markdown report of all requirements.
+refinement: |
+  The report shall include a list view, optional detail view, and satisfies links.
+
+  By default, the report shall be generated in the current working directory.
+
+  The user shall be able to specify a different output directory using the --output flag.
+attributes:
+  rationale: Stakeholders and teams need a shareable, readable Markdown report of requirements that can be committed, reviewed, and rendered without running the tool.
+  status: active
+links:
+  - satisfies: GRD-CLI-001

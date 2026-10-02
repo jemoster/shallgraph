@@ -1,0 +1,8 @@
+id: GRD-MD-006
+title: Link requirement references in text
+require: When rendering requirement text fields in Markdown, references to requirement IDs shall be rendered as hyperlinks to the referenced requirement definition within the report.
+refinement: This applies to requirement prose content, including require, refinement, and rationale, so users can navigate directly from textual references to the linked requirement.
+attributes:
+  status: active
+links:
+  - satisfies: GRD-MD-001

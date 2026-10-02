@@ -1,0 +1,8 @@
+id: GRD-MD-002
+title: Markdown reverse lookup
+require: The Markdown report shall include a list of requirements that link to each requirement.
+attributes:
+  rationale: As a user I want to navigate up and down the graph of requirements.
+  status: active
+links:
+  - satisfies: GRD-MD-001

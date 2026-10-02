@@ -1,0 +1,7 @@
+id: GRD-MD-001
+title: Markdown report
+require: The Markdown report shall represent the full set of information present in the requirements file.
+refinement: When a requirement defines a `parameters` map the report shall display those parameters—name and value—so the user can see at a glance which parameters the requirement defines and their current values.
+attributes:
+  rationale: Markdown output is easily consumed in repositories, pull requests, and documentation tools outside of a coding environment.
+  status: active

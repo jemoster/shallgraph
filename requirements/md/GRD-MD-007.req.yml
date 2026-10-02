@@ -1,0 +1,26 @@
+id: GRD-MD-007
+title: Source links in the Markdown report
+require: The Markdown report shall present the source-link records associated with each requirement.
+refinement: |
+  This consumer reads source-link records as defined by GRD-SYS-017 and YAML `satisfied_by` / `verified_by` artifacts as defined by GRD-SYS-016. It does not define how records are produced.
+
+  For each requirement, present matching items under two headings. Omit a heading when that requirement has no items for it:
+
+  - **Satisfied by** — YAML `satisfied_by` artifacts and source-link records with kind `implements`.
+  - **Verified by** — YAML `verified_by` artifacts and source-link records with kind `verifies`.
+
+  Under each heading, group items by origin and omit an empty group:
+
+  - **By comment** — YAML artifacts from the requirement file.
+  - **Rust** — source-link records collected from Rust tracing attributes.
+
+  Each presented source-link record identifies the source using `path`, `item`, and `linespace`.
+
+  How records are collected, and which producers exist beyond the origin groups above, is out of scope for this requirement.
+attributes:
+  rationale: One Satisfied by heading and one Verified by heading keep implementation and verification together while origin sub-headings show whether an item came from the requirement file or from Rust source.
+  status: active
+links:
+  - satisfies: GRD-MD-001
+  - satisfies: GRD-SYS-016
+  - satisfies: GRD-SYS-017
