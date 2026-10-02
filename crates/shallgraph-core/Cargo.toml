@@ -3,7 +3,7 @@ name = "shallgraph-core"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Core engine for shallgraph — discovery, parse, validate, and HTML report"
+description = "Core engine for shallgraph — discovery, parse, validate, HTML and Markdown reports"
 publish = false
 
 [features]

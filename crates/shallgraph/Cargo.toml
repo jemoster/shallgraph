@@ -3,7 +3,7 @@ name = "shallgraph"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Requirement management CLI — discover, validate, and report requirements from YAML"
+description = "Requirement management CLI — discover, validate, and generate HTML and Markdown reports from YAML"
 publish = false
 
 [lib]

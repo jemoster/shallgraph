@@ -1,6 +1,6 @@
 # Rust tracing sample
 
-A small Celsius/Fahrenheit library that shows how shallgraph collects **implementation** and **verification** links from Rust source and prints them in the HTML report.
+A small Celsius/Fahrenheit library that shows how shallgraph collects **implementation** and **verification** links from Rust source and prints them in the HTML and Markdown reports.
 
 Requirements live in `requirements/`. Implementation is tagged with `#[shallgraph::implements("…")]`. Tests that assert those requirements are tagged with `#[shallgraph::verifies("…")]`.
 
@@ -19,6 +19,7 @@ From this repository you can also run the same CLI from source:
 
 ```bash
 cargo run -p shallgraph -- html --project-dir sample_projects/rust --output ./out
+cargo run -p shallgraph -- markdown --project-dir sample_projects/rust --output ./out
 ```
 
 The `shallgraph-macros` crate is a path dependency on this workspace (same macros the latest release collects). In your own project, pin the macros crate to that release:
@@ -41,15 +42,16 @@ Or from this directory:
 cargo test
 ```
 
-## Generate the HTML report
+## Generate the HTML or Markdown report
 
 From this directory, after `shallgraph` is on `PATH`:
 
 ```bash
 shallgraph html --output ./out
+shallgraph markdown --output ./out
 ```
 
-Open `out/index.html`. Each requirement includes:
+Open `out/index.html` or `out/index.md`. Each requirement includes:
 
 - **Satisfied by**
   - **By comment** — YAML `satisfied_by` artifact paths

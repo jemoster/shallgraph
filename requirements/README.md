@@ -5,7 +5,9 @@ Product requirements for the shallgraph requirement management tool are stored h
 ## Numbering
 
 - **GRD-SYS-*** – System / platform (core engine, discovery, schema).
-- **GRD-CLI-*** – CLI behavior (validate, HTML export).
+- **GRD-CLI-*** – CLI behavior (validate, HTML export, Markdown export).
+- **GRD-HTML-*** – HTML report content and presentation.
+- **GRD-MD-*** – Markdown report content and presentation.
 - **GRD-VSC-*** – VSCode plugin (IDE integration, link following).
 - **GRD-DEVOPS-*** – DevOps / CI (GitHub Actions, tests on PRs).
 

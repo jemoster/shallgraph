@@ -1,0 +1,9 @@
+id: GRD-MD-005
+title: Parameters in Markdown table format
+require: When a requirement defines a `parameters` map, the Markdown report shall render those parameters in a Markdown table.
+refinement: The table shall show parameter name and value so the user can scan them at a glance.
+attributes:
+  rationale: A table layout provides clear alignment of names and values and scales better when a requirement has many parameters.
+  status: active
+links:
+- satisfies: GRD-MD-001

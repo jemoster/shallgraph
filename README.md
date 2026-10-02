@@ -39,6 +39,7 @@ Use Cursor [Agent Skills](https://cursor.com/docs/context/skills) in `.cursor/sk
 - `shallgraph validate` - check requirement YAML against the active schema.
 - `shallgraph format` - rewrite requirement YAML into canonical format.
 - `shallgraph html` - generate a static HTML report. When `origin` is GitHub, file paths link to the blob at `HEAD`.
+- `shallgraph markdown` - generate a static Markdown report. When `origin` is GitHub, file paths link to the blob at `HEAD`.
 - `shallgraph schema` - print or export the effective requirement schema.
 
 Use `shallgraph --help` or `shallgraph <command> --help` for full options.
@@ -98,7 +99,7 @@ fn report_contains_index() {}
 
 `implements` marks implementation; `verifies` marks verification. Each attribute accepts one or more requirement ID strings. `#[shallgraph_macros::implements]` / `#[shallgraph_macros::verifies]` are equivalent without the alias.
 
-The HTML report lists matching source links on each requirement under the same headings as YAML artifacts:
+The HTML and Markdown reports list matching source links on each requirement under the same headings as YAML artifacts:
 
 - **Satisfied by** — YAML `satisfied_by` under **By comment**, `implements` tags under **Rust**
 - **Verified by** — YAML `verified_by` under **By comment**, `verifies` tags under **Rust**

@@ -1,0 +1,8 @@
+id: GRD-MD-004
+title: Markdown in refinement and rationale
+require: When rendering the Markdown report, the refinement and rationale shall be rendered as Markdown.
+attributes:
+  rationale: Allow rich formatting in requirement text for readability.
+  status: active
+links:
+- satisfies: GRD-MD-001
