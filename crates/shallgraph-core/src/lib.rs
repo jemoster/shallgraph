@@ -8,6 +8,7 @@ pub mod error;
 pub mod format;
 pub mod html;
 pub mod load;
+pub mod markdown;
 pub mod parameters;
 pub mod parse;
 pub mod profile;
@@ -46,6 +47,10 @@ pub use html::{
 pub use load::get_requirements_with_links;
 #[cfg(feature = "std-fs")]
 pub use load::load_requirements;
+pub use markdown::{
+    generate_full_markdown, generate_full_markdown_with_artifact_links,
+    generate_full_markdown_with_source_links,
+};
 pub use parameters::{resolve_text, resolve_to_segments, ResolvedSegment, SegmentKind};
 #[cfg(feature = "std-fs")]
 pub use parse::parse_requirement_file;

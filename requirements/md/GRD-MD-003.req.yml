@@ -1,0 +1,9 @@
+id: GRD-MD-003
+title: Markdown Top-Level Index
+require: The Markdown report shall include a top-level index of requirements.
+refinement: This index shall be a hierarchical list of requirements, grouped by category.
+attributes:
+  rationale: Simplify navigation by grouping requirements.
+  status: active
+links:
+- satisfies: GRD-MD-001

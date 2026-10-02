@@ -1,0 +1,22 @@
+id: GRD-MD-008
+title: GitHub file links in the Markdown report
+require: The Markdown report shall render presented file paths as hyperlinks to those files at the current commit when the git origin remote is GitHub, and otherwise leave those paths unlinked.
+refinement: |
+  GitHub means the `origin` remote URL whose host is `github.com` or a GitHub Enterprise host whose hostname starts with `github.` (SSH and HTTPS). Other remotes, a missing `origin`, or a tree that is not a git repository produce no file-path hyperlinks.
+
+  Current commit means the `HEAD` object id at generate time.
+
+  File paths already presented in the report shall become those hyperlinks. That includes:
+
+  - The requirement source YAML path shown as the source file.
+  - Project-relative `satisfied_by` and `verified_by` artifact paths as defined by GRD-SYS-016. HTTP(S) artifact URLs remain ordinary web links.
+  - Source-link records presented by GRD-MD-007, using `path` and `linespace`. Source-link line ranges shall become GitHub URL fragments (`#L10` or `#L10-L12`).
+
+  The blob path shall be repository-relative. When the shallgraph project root is a subdirectory of the git toplevel, the path includes that subfolder.
+
+  Each GitHub file link shall be a Markdown hyperlink to the blob URL.
+attributes:
+  rationale: A static Markdown report is often viewed on GitHub or in a Markdown previewer. GitHub deep links at HEAD make repository-backed projects actionable from the report.
+  status: active
+links:
+- satisfies: GRD-MD-001

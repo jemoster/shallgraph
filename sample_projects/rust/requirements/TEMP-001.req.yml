@@ -3,7 +3,7 @@ title: Celsius to Fahrenheit
 require: The library shall convert a Celsius temperature to Fahrenheit using F = C * 9 / 5 + 32.
 refinement: Freezing (0 °C) maps to 32 °F. Boiling (100 °C) maps to 212 °F.
 attributes:
-  rationale: A single conversion formula is enough to show implementation and verification links in the HTML report.
+  rationale: A single conversion formula is enough to show implementation and verification links in the HTML and Markdown reports.
   status: active
 satisfied_by:
 - artifact: src/lib.rs
