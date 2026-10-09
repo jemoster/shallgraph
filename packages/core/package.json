@@ -1,6 +1,6 @@
 {
   "name": "@shallgraph/core",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "JS facade over shallgraph-core WASM — parse, validate, format, and HTML",
   "type": "module",
   "main": "dist/index.js",
