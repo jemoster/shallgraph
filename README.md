@@ -41,6 +41,7 @@ Use Cursor [Agent Skills](https://cursor.com/docs/context/skills) in `.cursor/sk
 - `shallgraph html` - generate a static HTML report. When `origin` is GitHub, file paths link to the blob at `HEAD`.
 - `shallgraph markdown` - generate a static Markdown report. When `origin` is GitHub, file paths link to the blob at `HEAD`.
 - `shallgraph schema` - print or export the effective requirement schema.
+- `shallgraph -v` or `shallgraph --version` - print the semantic version and exit.
 
 Use `shallgraph --help` or `shallgraph <command> --help` for full options.
 

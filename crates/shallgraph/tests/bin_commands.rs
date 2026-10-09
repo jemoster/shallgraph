@@ -324,6 +324,58 @@ fn markdown_sample_project_rust_includes_source_links() {
 }
 
 #[test]
+#[shallgraph::verifies("GRD-CLI-011")]
+fn version_flags_print_semantic_version() {
+    let version = env!("CARGO_PKG_VERSION");
+    let expected = format!("{version}\n");
+    let core = version.split_once('-').map(|(c, _)| c).unwrap_or(version);
+    let core = core.split_once('+').map(|(c, _)| c).unwrap_or(core);
+    let mut parts = core.split('.');
+    let major = parts.next().unwrap_or("");
+    let minor = parts.next().unwrap_or("");
+    let patch = parts.next().unwrap_or("");
+    assert!(
+        parts.next().is_none()
+            && !major.is_empty()
+            && major.chars().all(|ch| ch.is_ascii_digit())
+            && !minor.is_empty()
+            && minor.chars().all(|ch| ch.is_ascii_digit())
+            && !patch.is_empty()
+            && patch.chars().all(|ch| ch.is_ascii_digit()),
+        "package version is not a semantic version: {version}"
+    );
+
+    for args in [
+        vec!["-v"],
+        vec!["--version"],
+        vec!["-v", "validate"],
+        vec!["validate", "-v"],
+        vec!["--version", "html"],
+        vec!["html", "--version"],
+    ] {
+        let out = Command::new(bin()).args(&args).output().unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        assert!(
+            out.status.success(),
+            "{args:?} failed: stdout={stdout} stderr={stderr}"
+        );
+        assert_eq!(stdout, expected, "{args:?}");
+        assert!(stderr.is_empty(), "{args:?} stderr={stderr}");
+    }
+}
+
+#[test]
+#[shallgraph::verifies("GRD-CLI-011")]
+fn help_lists_version_flags() {
+    let out = Command::new(bin()).arg("--help").output().unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("-v, --version"));
+    assert!(text.contains("Print the semantic version"));
+}
+
+#[test]
 fn validate_this_repository() {
     let root = repo_root();
     let out = Command::new(bin())

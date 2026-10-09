@@ -1,0 +1,18 @@
+id: GRD-CLI-011
+title: Print the CLI semantic version
+require: The CLI shall print its semantic version when the user passes -v or --version.
+refinement: |
+  The semantic version is the shared package version defined by GRD-DEVOPS-003.
+
+  The CLI shall write that version alone to standard output, followed by a newline, and shall exit successfully without running another command.
+
+  The flags -v and --version shall be accepted with no command, before a command, or after a command.
+attributes:
+  rationale: Users and scripts need a stable way to confirm which shallgraph release is installed.
+  status: active
+satisfied_by:
+- artifact: crates/shallgraph/src/main.rs
+  description: Root CLI accepts -v and --version and prints the package semantic version.
+verified_by:
+- artifact: crates/shallgraph/tests/bin_commands.rs
+  description: Binary tests assert -v and --version print the crate semantic version and exit successfully.

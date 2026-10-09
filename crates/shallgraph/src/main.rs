@@ -1,5 +1,7 @@
 //! shallgraph – requirement discovery and validation (GRD-CLI-008).
 
+extern crate shallgraph_macros as shallgraph;
+
 use clap::{Parser, Subcommand, ValueEnum};
 use shallgraph_cli::{
     run_bootstrap, run_format, run_html, run_markdown, run_schema, run_validate, BootstrapOptions,
@@ -15,6 +17,7 @@ use std::process::ExitCode;
     about = "ShallGraph – requirement discovery and validation",
     long_about = "ShallGraph – requirement discovery and validation\n\n\
 Usage: shallgraph <command> [options]\n\n\
+Pass -v or --version to print the semantic version and exit.\n\n\
 Commands:\n  \
   validate   Check requirement files for schema, duplicate IDs, and broken links\n  \
   format     Rewrite requirement YAML files to canonical formatting\n  \
@@ -24,6 +27,10 @@ Commands:\n  \
   bootstrap  Initialize a directory with shallgraph.yaml and a requirements folder"
 )]
 struct Cli {
+    /// Print the semantic version and exit
+    #[arg(short = 'v', long = "version", global = true)]
+    version: bool,
+
     /// Project directory (default: current directory)
     #[arg(long, global = true, value_name = "DIR")]
     project_dir: Option<PathBuf>,
@@ -97,8 +104,19 @@ fn ask_cursor_rules() -> bool {
     normalized == "y" || normalized == "yes"
 }
 
+/// GRD-CLI-011: print the shared package semantic version.
+#[shallgraph::implements("GRD-CLI-011")]
+fn print_semantic_version() {
+    println!("{}", env!("CARGO_PKG_VERSION"));
+}
+
 fn main() -> ExitCode {
     let cli = Cli::parse();
+    if cli.version {
+        print_semantic_version();
+        return ExitCode::SUCCESS;
+    }
+
     let project_dir = cli
         .project_dir
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")));

@@ -4,7 +4,7 @@ This page collects developer-focused documentation that was moved out of `README
 
 ## Current Components
 
-- **CLI** - Discover requirements, validate schema, format requirement YAML, and generate static HTML and Markdown reports. Run from a project root (`shallgraph.yaml` / `shallgraph.yml`) or pass `--project-dir`. The Rust `shallgraph` binary provides bootstrap, validate, format, html, markdown, and schema.
+- **CLI** - Discover requirements, validate schema, format requirement YAML, and generate static HTML and Markdown reports. Run from a project root (`shallgraph.yaml` / `shallgraph.yml`) or pass `--project-dir`. The Rust `shallgraph` binary provides bootstrap, validate, format, html, markdown, and schema. `shallgraph -v` and `shallgraph --version` print the semantic version and exit.
 - **VS Code extension** - Navigate `satisfies` links, use Go to Definition on requirement IDs, preview requirements, and scaffold new requirements. The extension calls `@shallgraph/core`, a JS facade over the `shallgraph-core` WASM module.
 - **Pre-commit hook** - Optional hook script under `scripts/` to run `shallgraph validate` on commit.
 
