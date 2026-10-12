@@ -4,9 +4,8 @@
   "description": "Follow links in requirement files",
   "main": "dist/extension.js",
   "scripts": {
-    "build:webview": "mkdir -p dist/webview && esbuild webview/editor-main.ts --bundle --outfile=dist/webview/editor-webview.js --platform=browser --format=esm --sourcemap --log-level=warning && cp ../../node_modules/@toast-ui/editor/dist/toastui-editor.css dist/webview/",
     "copy-wasm": "mkdir -p dist && cp ../core/wasm/shallgraph_wasm_bg.wasm dist/",
-    "build": "npm run build -w @shallgraph/core && npm run build:webview && npm run copy-wasm && esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --format=cjs --external:vscode --sourcemap",
+    "build": "npm run build -w @shallgraph/core && npm run copy-wasm && esbuild src/extension.ts --bundle --outfile=dist/extension.js --platform=node --format=cjs --external:vscode --sourcemap",
     "clean": "rm -rf dist",
     "package": "npm run copy-wasm && npx vsce package --no-dependencies",
     "publish-marketplace": "npx vsce publish --no-dependencies --skip-duplicate",
@@ -27,6 +26,7 @@
   },
   "activationEvents": [
     "onLanguage:yaml",
+    "onCustomEditor:shallgraph.requirementRendered",
     "onStartupFinished"
   ],
   "categories": [
@@ -40,7 +40,6 @@
   "license": "MIT",
   "dependencies": {
     "@shallgraph/core": "0.9.0",
-    "@toast-ui/editor": "^3.2.2",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
@@ -58,12 +57,29 @@
         "*.req.yaml": "yaml"
       }
     },
+    "customEditors": [
+      {
+        "viewType": "shallgraph.requirementRendered",
+        "displayName": "ShallGraph Rendered Requirement",
+        "selector": [
+          { "filenamePattern": "*.req.yml" },
+          { "filenamePattern": "*.req.yaml" }
+        ],
+        "priority": "option"
+      }
+    ],
     "commands": [
       {
-        "command": "shallgraph.requirement.openPreview",
-        "title": "ShallGraph: Open Requirement Preview",
+        "command": "shallgraph.requirement.showRendered",
+        "title": "ShallGraph: Show Rendered View",
         "category": "ShallGraph",
         "icon": "$(open-preview)"
+      },
+      {
+        "command": "shallgraph.requirement.showSource",
+        "title": "ShallGraph: Show YAML Source",
+        "category": "ShallGraph",
+        "icon": "$(file-code)"
       },
       {
         "command": "shallgraph.requirement.new",
@@ -74,9 +90,14 @@
     "menus": {
       "editor/title": [
         {
-          "command": "shallgraph.requirement.openPreview",
+          "command": "shallgraph.requirement.showRendered",
           "group": "navigation@1",
-          "when": "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/"
+          "when": "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/ && activeCustomEditorId != 'shallgraph.requirementRendered'"
+        },
+        {
+          "command": "shallgraph.requirement.showSource",
+          "group": "navigation@1",
+          "when": "activeCustomEditorId == 'shallgraph.requirementRendered'"
         }
       ],
       "explorer/context": [

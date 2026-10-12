@@ -1,8 +1,8 @@
 /**
- * VSCode extension for shallgraph: link resolution, preview (GRD-VSC-003), WYSIWYG/Markdown fields in preview (GRD-VSC-006), navigation,
- * YAML schema for requirement files (GRD-VSC-004): registered at runtime from core (GRD-SYS-009),
- * refreshed when project root markers change, new requirement from explorer (GRD-VSC-005),
- * and hover titles for requirement id references (GRD-VSC-007).
+ * VSCode extension for shallgraph: link resolution, same-tab rendered view (GRD-VSC-003) that stays
+ * read-only (GRD-VSC-006), navigation, YAML schema for requirement files (GRD-VSC-004): registered at
+ * runtime from core (GRD-SYS-009), refreshed when project root markers change, new requirement from
+ * explorer (GRD-VSC-005), and hover titles for requirement id references (GRD-VSC-007).
  */
 import * as vscode from "vscode";
 import * as path from "node:path";
@@ -10,7 +10,14 @@ import { REQUIREMENT_FILE_EXTENSION } from "@shallgraph/core";
 import { isRequirementDocument } from "./requirement-document.js";
 import { resolveRequirementPath } from "./link-resolver.js";
 import { newRequirementYamlTemplate } from "./new-requirement-template.js";
-import { RequirementPreviewManager } from "./preview.js";
+import {
+  DEFAULT_TEXT_EDITOR,
+  RENDERED_VIEW_TYPE,
+  RequirementRenderedEditorProvider,
+  SHOW_RENDERED_COMMAND,
+  SHOW_SOURCE_COMMAND,
+  switchRequirementEditor,
+} from "./rendered-view.js";
 import { registerRequirementYamlSchema } from "./requirement-yaml-schema.js";
 import { registerRequirementHoverProvider } from "./requirement-hover.js";
 
@@ -45,33 +52,7 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(registerRequirementYamlSchema(context));
-
-  const previewManager = new RequirementPreviewManager(
-    context,
-    log,
-    async (requirementId: string) => {
-      const activeUri = vscode.window.activeTextEditor?.document.uri;
-      const folder =
-        (activeUri && vscode.workspace.getWorkspaceFolder(activeUri)) ??
-        vscode.workspace.workspaceFolders?.[0];
-      if (!folder) {
-        log("[ShallGraph] No workspace folder; cannot open preview for " + requirementId);
-        return;
-      }
-      const targetPath = await resolveRequirementPath(
-        folder.uri.fsPath,
-        requirementId,
-        log
-      );
-      if (!targetPath) {
-        log("[ShallGraph] Requirement not found: " + requirementId);
-        return;
-      }
-      const doc = await vscode.workspace.openTextDocument(targetPath);
-      await vscode.window.showTextDocument(doc, { viewColumn: vscode.ViewColumn.One });
-      previewManager.openPreviewForDocument(doc);
-    }
-  );
+  context.subscriptions.push(RequirementRenderedEditorProvider.register(log));
 
   /** GRD-SYS-007: requirement files use `.req.yml` or `.req.yaml`. */
   const requirementYamlSelector: vscode.DocumentSelector = [
@@ -138,22 +119,25 @@ export function activate(context: vscode.ExtensionContext): void {
   // GRD-VSC-007: Hover shows resolved requirement title for ids under the pointer (satisfies lines and other references).
   const hoverProvider = registerRequirementHoverProvider(requirementYamlSelector, log);
 
-  // GRD-VSC-003: Editor title action (Preview button) — opens requirement preview webview side-by-side.
-  const openPreviewCommand = vscode.commands.registerCommand(
-    "shallgraph.requirement.openPreview",
-    () => {
-      const editor = vscode.window.activeTextEditor;
-      if (!editor) {
-        log("[ShallGraph] No active editor for preview command.");
-        return;
-      }
-      if (!isRequirementDocument(editor.document)) {
-        log("[ShallGraph] Preview applies only to `.req.yml` / `.req.yaml` requirement files.");
-        return;
-      }
-      previewManager.openPreviewForDocument(editor.document);
+  // GRD-VSC-003: Editor title action switches this tab between YAML and the rendered view.
+  const showRenderedCommand = vscode.commands.registerCommand(SHOW_RENDERED_COMMAND, async () => {
+    const editor = vscode.window.activeTextEditor;
+    if (!editor || !isRequirementDocument(editor.document)) {
+      log("[ShallGraph] Show Rendered View applies only to `.req.yml` / `.req.yaml` requirement files.");
+      return;
     }
-  );
+    await switchRequirementEditor(editor.document.uri, RENDERED_VIEW_TYPE);
+  });
+
+  const showSourceCommand = vscode.commands.registerCommand(SHOW_SOURCE_COMMAND, async () => {
+    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+    const input = tab?.input;
+    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== RENDERED_VIEW_TYPE) {
+      log("[ShallGraph] Show YAML Source applies when the rendered requirement view is active.");
+      return;
+    }
+    await switchRequirementEditor(input.uri, DEFAULT_TEXT_EDITOR);
+  });
 
   // GRD-VSC-005: Explorer context menu — create a new requirement with schema-based template.
   const newRequirementCommand = vscode.commands.registerCommand(
@@ -215,7 +199,8 @@ export function activate(context: vscode.ExtensionContext): void {
     documentLinkProvider,
     definitionProvider,
     hoverProvider,
-    openPreviewCommand,
+    showRenderedCommand,
+    showSourceCommand,
     newRequirementCommand
   );
 }
