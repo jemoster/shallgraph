@@ -1,28 +1,13 @@
 id: GRD-VSC-006
-title: WYSIWYG and plain Markdown for requirement text
-require: "The VSCode extension editor webview shall allow the user to edit certain text fields of a requirement file using a simple WYSIWYG interface for formatting text including:"
+title: Read-only rendered requirement view
+require: The VSCode extension shall keep the rendered requirement view read-only.
 refinement: |
-  * headings
+  The user edits requirement text, including require, refinement, and rationale, in the YAML source of the requirement file.
 
-  * emphasis
-
-  * lists
-
-  * links
-
-  * images
-
-  * tables
-
-  * code blocks
-
-  * quotes
-
-  The user shall be able to edit either the text in the YAML editor or the text in the WYSIWYG editor.
-
-  The UI shall be consistent with the VSCode editor.
+  The rendered view does not provide a WYSIWYG editor, a text field editor, or any other control that writes requirement fields back to the file.
 attributes:
-  rationale: A WYSIWYG option lowers the barrier for contributors who are uncomfortable with Markdown syntax, while a plain Markdown mode preserves full control, diff-friendly editing, and alignment with existing tooling that treats text as Markdown text.
+  rationale: |
+    The rendered view is a check against the report, not a second place to author the requirement. Editing stays in the YAML source so there is one text to diff, review, and validate.
   status: active
 links:
   - satisfies: GRD-VSC-003
