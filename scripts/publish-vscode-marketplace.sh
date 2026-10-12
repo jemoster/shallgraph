@@ -23,7 +23,12 @@ if [[ "${#vsix_files[@]}" -ne 1 ]]; then
 fi
 
 VSIX="${vsix_files[0]}"
+PRE_RELEASE_ARGS=()
+if unzip -p "${VSIX}" extension.vsixmanifest 2>/dev/null | grep -q 'Microsoft.VisualStudio.Code.PreRelease'; then
+  PRE_RELEASE_ARGS+=(--pre-release)
+  echo "VSIX is packaged as a pre-release."
+fi
 echo "Publishing ${VSIX} to the Visual Studio Marketplace ..."
 cd "${REPO_ROOT}/packages/vscode"
-npx vsce publish --packagePath "${VSIX}" --pat "${VSCE_PAT}" --skip-duplicate
+npx vsce publish --packagePath "${VSIX}" --pat "${VSCE_PAT}" --skip-duplicate "${PRE_RELEASE_ARGS[@]}"
 echo "Done. Extension: https://marketplace.visualstudio.com/items?itemName=shallgraph.shallgraph-vscode"

@@ -1,10 +1,10 @@
 /**
- * GRD-VSC-003: Requirement editor preview — contribution tests.
- * Asserts that the extension contributes the Preview editor title action
- * for YAML files and the openPreview command.
+ * GRD-VSC-003: Same-tab rendered view — contribution tests.
+ * Opening a requirement file stays on the YAML text editor (`priority: option`).
+ * Editor title actions switch that tab to the rendered view and back.
  *
- * Preview uses core's generateSingleRequirementHtml (same as full report), so description
- * and rationale are rendered as Markdown per GRD-HTML-004.
+ * The rendered view uses core's generateSingleRequirementHtml (same as the full report),
+ * so description and rationale are rendered as Markdown per GRD-HTML-004.
  */
 import * as path from "node:path";
 import * as fs from "node:fs";
@@ -12,31 +12,63 @@ import { exportRequirementFileJsonSchema } from "@shallgraph/core";
 
 const packagePath = path.join(__dirname, "..", "package.json");
 const pkg = JSON.parse(fs.readFileSync(packagePath, "utf-8")) as {
+  scripts?: { build?: string };
+  dependencies?: Record<string, string>;
   contributes?: {
     commands?: Array<{ command: string; title: string; category?: string; icon?: string }>;
     menus?: Record<string, Array<{ command: string; when?: string; group?: string }>>;
+    customEditors?: Array<{
+      viewType: string;
+      displayName?: string;
+      priority?: string;
+      selector?: Array<{ filenamePattern?: string }>;
+    }>;
   };
 };
 
-describe("GRD-VSC-003 requirement preview contributions", () => {
-  it("contributes openPreview command with ShallGraph category and icon", () => {
-    const commands = pkg.contributes?.commands ?? [];
-    const preview = commands.find((c) => c.command === "shallgraph.requirement.openPreview");
-    expect(preview).toBeDefined();
-    expect(preview!.title).toContain("Preview");
-    expect(preview!.category).toBe("ShallGraph");
-    expect(preview!.icon).toBe("$(open-preview)");
+describe("GRD-VSC-003 same-tab rendered view contributions", () => {
+  it("keeps the YAML text editor as the default for requirement files", () => {
+    const editors = pkg.contributes?.customEditors ?? [];
+    const rendered = editors.find((e) => e.viewType === "shallgraph.requirementRendered");
+    expect(rendered).toBeDefined();
+    expect(rendered!.priority).toBe("option");
+    const patterns = (rendered!.selector ?? []).map((s) => s.filenamePattern);
+    expect(patterns).toEqual(expect.arrayContaining(["*.req.yml", "*.req.yaml"]));
   });
 
-  it("contributes editor/title menu so Preview is shown only for .req.yml / .req.yaml", () => {
+  it("contributes a show-rendered command for the YAML editor title", () => {
+    const commands = pkg.contributes?.commands ?? [];
+    const showRendered = commands.find((c) => c.command === "shallgraph.requirement.showRendered");
+    expect(showRendered).toBeDefined();
+    expect(showRendered!.title).toContain("Rendered");
+    expect(showRendered!.category).toBe("ShallGraph");
+    expect(showRendered!.icon).toBe("$(open-preview)");
+    expect(commands.some((c) => c.command === "shallgraph.requirement.openPreview")).toBe(false);
+
     const editorTitle = pkg.contributes?.menus?.["editor/title"] ?? [];
-    const previewEntry = editorTitle.find(
-      (m) => m.command === "shallgraph.requirement.openPreview"
+    const entry = editorTitle.find((m) => m.command === "shallgraph.requirement.showRendered");
+    expect(entry).toBeDefined();
+    expect(entry!.when).toBe(
+      "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/ && activeCustomEditorId != 'shallgraph.requirementRendered'"
     );
-    expect(previewEntry).toBeDefined();
-    expect(previewEntry!.when).toBe(
-      "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/"
-    );
+  });
+
+  it("contributes a show-source command that returns the same tab to YAML", () => {
+    const commands = pkg.contributes?.commands ?? [];
+    const showSource = commands.find((c) => c.command === "shallgraph.requirement.showSource");
+    expect(showSource).toBeDefined();
+    expect(showSource!.title).toContain("YAML");
+    expect(showSource!.category).toBe("ShallGraph");
+
+    const editorTitle = pkg.contributes?.menus?.["editor/title"] ?? [];
+    const entry = editorTitle.find((m) => m.command === "shallgraph.requirement.showSource");
+    expect(entry).toBeDefined();
+    expect(entry!.when).toBe("activeCustomEditorId == 'shallgraph.requirementRendered'");
+  });
+
+  it("does not bundle a rich-text editor for the rendered view", () => {
+    expect(pkg.dependencies?.["@toast-ui/editor"]).toBeUndefined();
+    expect(pkg.scripts?.build ?? "").not.toContain("webview");
   });
 });
 

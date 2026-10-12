@@ -1,23 +1,19 @@
 id: GRD-VSC-003
-title: Requirement editor
-require: The VSCode extension shall provide a dedicated requirement editor webview.
+title: Requirement rendered view
+require: The VSCode extension shall let the user switch a requirement file between its YAML source and a rendered view in the same editor tab.
 refinement: |
-  Launch mechanism — Editor title action (Editor button):
+  Opening a requirement file shows the YAML text editor.
 
-  The extension shall contribute a single icon in the top-right corner of the editor tab (editor/title contribution). When the user clicks this icon, the extension shall open the requirement editor webview in a side-by-side column (split view), so the user can edit YAML in the editor and see the rendered Editor alongside.
+  The switch is available for requirement files (`*.req.yml` and `*.req.yaml`) and switches that same tab back to the YAML source.
 
-  The button shall be shown when the active editor is a YAML file.
+  The rendered view displays an HTML representation of that file's requirement, generated from the current YAML content. When the YAML content changes while the rendered view is showing, the view refreshes from that content.
 
-  The "Editor" view shall display an HTML representation of the requirement, rendered from the current YAML content.
+  The HTML used in the rendered view shall share a common base structure, styling, and components with the HTML generated for the full requirements report, so the in-tab view stays consistent with the exported report.
 
-  The Editor shall show the requirement for the document for which the user opened the Editor; when the user opens Editor for another requirement file, that file's Editor is shown (in the same or a separate panel).
-
-  The HTML used in the "Editor" view shall share a common base structure, styling, and components with the HTML that is generated for the full requirements report, so that individual requirement Editors are visually and structurally consistent with the full report output.
-
-  When a user clicks on a "satisfies" link in the requirement YAML, the extension shall open the editor webview for the target requirement.
+  A requirement link in the rendered view opens the target requirement file in the editor as YAML.
 attributes:
   rationale: |
-    A split Editor/YAML experience allows users to both directly edit the underlying requirement YAML and immediately see a rendered representation in a form consistent with exported reports. Sharing a common HTML base between the per-requirement Editor and the full report minimizes duplication, reduces divergence in presentation, and ensures that what users see in the editor accurately reflects the generated documentation.
+    A same-tab switch lets the user check a requirement against the report HTML from the file they already have open. Opening the file as YAML keeps link navigation, schema help, and the rest of the editor available, and the user switches to the rendered view when they want to see the report HTML. Sharing the report HTML keeps that view consistent with the exported documentation.
   status: active
 links:
   - satisfies: GRD-VSC-001
