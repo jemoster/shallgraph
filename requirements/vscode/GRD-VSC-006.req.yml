@@ -3,11 +3,9 @@ title: Read-only rendered requirement view
 require: The VSCode extension shall keep the rendered requirement view read-only.
 refinement: |
   The user edits requirement text, including require, refinement, and rationale, in the YAML source of the requirement file.
-
-  The rendered view does not provide a WYSIWYG editor, a text field editor, or any other control that writes requirement fields back to the file.
 attributes:
   rationale: |
-    The rendered view is a check against the report, not a second place to author the requirement. Editing stays in the YAML source so there is one text to diff, review, and validate.
+    The rendered view checks the requirement against the report. Editing stays in the YAML source so there is one text to diff, review, and validate.
   status: active
 links:
   - satisfies: GRD-VSC-003

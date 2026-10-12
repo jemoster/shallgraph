@@ -2,18 +2,18 @@ id: GRD-VSC-003
 title: Requirement rendered view
 require: The VSCode extension shall let the user switch a requirement file between its YAML source and a rendered view in the same editor tab.
 refinement: |
-  Opening a requirement file shows the YAML text editor. The extension does not open a rendered view, another editor column, or another window until the user switches that tab to the rendered view.
+  Opening a requirement file shows the YAML text editor.
 
-  The switch is available for requirement files (`*.req.yml` and `*.req.yaml`) and switches that same tab back to the YAML source. It is not offered for other YAML files.
+  The switch is available for requirement files (`*.req.yml` and `*.req.yaml`) and switches that same tab back to the YAML source.
 
   The rendered view displays an HTML representation of that file's requirement, generated from the current YAML content. When the YAML content changes while the rendered view is showing, the view refreshes from that content.
 
   The HTML used in the rendered view shall share a common base structure, styling, and components with the HTML generated for the full requirements report, so the in-tab view stays consistent with the exported report.
 
-  Following a link in the YAML source opens the target as defined by GRD-VSC-002 and does not switch the target file to the rendered view. A requirement link in the rendered view opens the target requirement file in the editor as YAML and does not show that file's rendered view.
+  A requirement link in the rendered view opens the target requirement file in the editor as YAML.
 attributes:
   rationale: |
-    A same-tab switch lets the user check a requirement against the report HTML without opening another editor column. The file stays YAML until the user asks for the rendered view, so link navigation, schema help, and the rest of the editor stay in place. Sharing the report HTML keeps that view consistent with the exported documentation.
+    A same-tab switch lets the user check a requirement against the report HTML from the file they already have open. Opening the file as YAML keeps link navigation, schema help, and the rest of the editor available, and the user switches to the rendered view when they want to see the report HTML. Sharing the report HTML keeps that view consistent with the exported documentation.
   status: active
 links:
   - satisfies: GRD-VSC-001
