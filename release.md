@@ -99,6 +99,10 @@ chmod +x shallgraph-linux-x86_64
 
 Actions → **Release CLI artifacts** → **Run workflow**. Manual `workflow_dispatch` runs the same packaging as a published release, then uploads `cli-tarballs` and `shallgraph-linux-x86_64` as workflow artifacts. It does not create or modify a GitHub Release.
 
+### Beta of the next version
+
+The Visual Studio Marketplace rejects semver pre-release identifiers such as `0.10.0-beta.1`. A beta uses the next `X.Y.Z` and a GitHub Release marked as a pre-release. The tag is still `vX.Y.Z`. The VS Code release job packages that VSIX with `--pre-release` and publishes it as a pre-release, so Marketplace and Open VSX do not replace the current stable version.
+
 ### Full GitHub Release path
 
-Publish a GitHub Release (a prerelease is enough) from a tag. That is the only trigger that attaches assets with `gh release upload` and publishes the VSIX to the Visual Studio Marketplace and to Open VSX. Confirm the release page includes `shallgraph-core-X.Y.Z.tgz`, `shallgraph-vscode-X.Y.Z.vsix`, and `shallgraph-linux-x86_64`. Confirm both registry listings match that same version.
+Publish a GitHub Release from a tag. Mark it as a pre-release for a beta. That is the only trigger that attaches assets with `gh release upload` and publishes the VSIX to the Visual Studio Marketplace and to Open VSX. Confirm the release page includes `shallgraph-core-X.Y.Z.tgz`, `shallgraph-vscode-X.Y.Z.vsix`, and `shallgraph-linux-x86_64`. Confirm both registry listings match that same version.

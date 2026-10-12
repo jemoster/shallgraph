@@ -202,6 +202,8 @@ describe("GRD-DEVOPS-003: shared release version", () => {
     const vscodeWorkflow = fs.readFileSync(VSCODE_RELEASE_WORKFLOW, "utf-8");
     expect(vscodeWorkflow).toContain("python3 ./scripts/assert-release-tag.py");
     expect(vscodeWorkflow).toContain('"${{ github.event.release.tag_name }}" vscode');
+    expect(vscodeWorkflow).toContain("github.event.release.prerelease");
+    expect(vscodeWorkflow).toContain("--pre-release");
   });
 
   it("release guide documents the bump script as the version-update step", () => {

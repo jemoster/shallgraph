@@ -31,8 +31,17 @@ jobs:
         run: npm ci
       - name: Build
         run: npm run build
+      # A GitHub pre-release is a beta of the next X.Y.Z. Marketplace rejects
+      # semver identifiers such as 0.10.0-beta.1, so the VSIX stays X.Y.Z and
+      # is packaged with the pre-release flag.
       - name: Package VSCode extension
-        run: npm run package -w shallgraph-vscode
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event.release.prerelease }}" = "true" ]; then
+            npm run package -w shallgraph-vscode -- --pre-release
+          else
+            npm run package -w shallgraph-vscode
+          fi
       # GRD-DEVOPS-003: tag must be v${version} and the VSIX filename must include that version.
       - name: Assert tag and VSIX filename
         run: python3 ./scripts/assert-release-tag.py "${{ github.event.release.tag_name }}" vscode

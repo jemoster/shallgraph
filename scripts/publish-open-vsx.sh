@@ -2,6 +2,8 @@
 # GRD-VSC-009: Publish the packaged shallgraph-vscode VSIX to Open VSX so Cursor can install it.
 # Uses the same versioned VSIX that the release workflow uploads to GitHub (GRD-DEVOPS-002 / GRD-DEVOPS-003).
 # Requires OVSX_PAT (Open VSX access token). The shallgraph namespace must already exist.
+# A VSIX packaged with `vsce package --pre-release` keeps that pre-release bit; Open VSX
+# reads it from the package. `--pre-release` on `ovsx publish` is ignored for a prepackaged VSIX.
 # Usage: ./scripts/publish-open-vsx.sh
 
 set -euo pipefail
