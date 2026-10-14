@@ -27,7 +27,7 @@ Do not implement the requirement. Only define the requirement.
 
 Each requirement file uses:
 
-- `require` — one normative sentence with exactly one of shall, should, or may (for this requirement ID).
-- `refinement` — optional supporting detail (Markdown in reports); bullets and examples go here.
+- `require` — one short normative sentence with exactly one of shall, should, or may (for this requirement ID). State the obligation so a reader can understand it at a glance. Do not list every feature, option, or constraint in `require`; put that detail in `refinement`.
+- `refinement` — optional supporting detail (Markdown in reports); bullets, examples, and the feature-by-feature constraints go here.
 
 When writing requirements YAML, do not include newlines to limit the line length. Assume instead that word-wrap will be used to maintain readability.
