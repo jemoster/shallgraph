@@ -1,2 +1,15 @@
 requirement_dirs:
   - ./
+tags:
+  priority:
+    values: [low, medium, high]
+    required: true
+  component:
+    values: [frontend, backend, platform]
+    allow_null: true
+  concern:
+    values: [privacy, latency, scale, security]
+    multiple: true
+    allow_empty: true
+    allow_null_entry: true
+    max_entries: 3

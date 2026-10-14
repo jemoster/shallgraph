@@ -6,5 +6,9 @@ attributes:
     Balances storage costs with data retention requirements and privacy 
     regulations regarding data minimization.
   status: active
+tags:
+  priority: medium
+  component: null
+  concern: [privacy, null]
 links:
   - satisfies: SYS-001

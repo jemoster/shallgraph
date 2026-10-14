@@ -10,5 +10,9 @@ attributes:
     Users need to monitor multiple entry points simultaneously 
     to maintain situational awareness of the facility.
   status: active
+tags:
+  priority: medium
+  component: frontend
+  concern: [scale]
 links:
   - satisfies: SYS-002

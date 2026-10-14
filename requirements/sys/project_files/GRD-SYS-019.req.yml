@@ -1,0 +1,60 @@
+id: GRD-SYS-019
+title: Custom tags
+require: Requirement validation shall enforce custom tags defined in {{ GRD-SYS-007:root_marker_filename }}.
+refinement: |
+  Custom tags are a project-defined controlled vocabulary. The active project root marker {{ GRD-SYS-007:root_marker_filename }} may contain a top-level `tags` mapping. Omitting `tags` defines no custom tags. When `tags` is present it shall be a mapping from a tag name to that tag's definition. A tag name shall be a non-empty string. An empty mapping defines no custom tags.
+
+  Each tag definition shall be a mapping. `values` is required and shall be a non-empty sequence of strings. Those strings are the finite set of valid values for that tag. Comparison is exact and case-sensitive. A duplicate string in `values` is a configuration error. YAML null inside `values` is a configuration error. Allowed strings are scoped to that tag.
+
+  `required` is an optional boolean and defaults to false. When `required` is true, every requirement file shall include an entry for that tag whose value is valid for the tag. When `required` is false or omitted, a requirement file may omit that tag.
+
+  `multiple` is an optional boolean and defaults to false. When `multiple` is false or omitted, the tag is a single value. When `multiple` is true, the tag is a sequence of values.
+
+  A single-value tag definition uses only the keys `values`, `required`, `multiple`, and `allow_null`. `allow_null` is an optional boolean and defaults to false. A single-value entry shall be a string in `values`. When `allow_null` is true, YAML null is also a valid value for that entry. A required single-value tag is satisfied by a present entry whose value is a string in `values`, or YAML null when `allow_null` is true.
+
+  A multi-value tag definition uses only the keys `values`, `required`, `multiple`, `allow_empty`, `allow_null_entry`, and `max_entries`. The requirement entry shall be a sequence. `allow_empty` is an optional boolean and defaults to false. When `allow_empty` is true, an empty sequence is valid. When `allow_empty` is false or omitted, a present sequence shall contain at least one item. `allow_null_entry` is an optional boolean and defaults to false. When `allow_null_entry` is true, an item may be YAML null, and that null is not listed in `values`. When `allow_null_entry` is false or omitted, every item shall be a string in `values`. Every non-null item shall be a string in `values`. `max_entries`, when present, shall be an integer greater than or equal to 0 and is an upper bound on the number of items in the sequence, counting null items. A sequence longer than `max_entries` fails validation. Omitting `max_entries` places no upper bound on the sequence. A repeated string is valid when that string is in `values`. A definition with `max_entries` 0 and `allow_empty` false or omitted is a configuration error. A required multi-value tag is satisfied by a present sequence that meets these limits.
+
+  Cardinality and limit checks apply when the tag entry is present. Absence of an entry is governed only by `required`.
+
+  Any other key in a tag definition, a key whose type does not match this definition, or a `tags` value that is not a mapping is a configuration error.
+
+  On a requirement file, tag entries are a top-level `tags` mapping, separate from `attributes`. When `tags` is present it shall be a mapping. Each key shall name a tag defined for the project, and each value shall match that tag's cardinality and limits. A present entry that fails those limits fails validation. When any tag is required, the requirement file shall include a `tags` entry for each required tag. When no custom tags are defined, a `tags` field on a requirement file fails validation.
+
+  Invalid tag configuration is reported against the project root marker and the tag name. Invalid tag entries are reported against the requirement file and the tag name. The effective requirement schema for the project includes these constraints, so schema-backed validation enforces the same limits.
+
+  This requirement does not define how custom tags are rendered in reports.
+
+  Example configuration:
+
+  ```yaml
+  tags:
+    priority:
+      values: [low, medium, high]
+      required: true
+    owner:
+      values: [unassigned, alice, bob]
+      allow_null: true
+    labels:
+      values: [safety, security, performance]
+      multiple: true
+      allow_empty: false
+      allow_null_entry: true
+      max_entries: 3
+  ```
+
+  Example requirement entries that match that configuration:
+
+  ```yaml
+  tags:
+    priority: high
+    owner: null
+    labels: [safety, null, performance]
+  ```
+attributes:
+  rationale: |
+    Projects need controlled vocabularies on requirement files, with validation that required tags are present and that each value stays inside the set and the limits configured for that tag.
+  status: active
+links:
+- satisfies: GRD-SYS-001
+- satisfies: GRD-SYS-009
+- satisfies: GRD-VALID-001

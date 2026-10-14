@@ -18,6 +18,7 @@ pub mod schema;
 pub mod schema_compose;
 #[cfg(feature = "source-links")]
 pub mod source_links;
+pub mod tags;
 pub mod types;
 
 pub use artifact_links::{
@@ -75,8 +76,12 @@ pub use schema::{export_requirement_file_json_schema, parse_requirement_value};
 pub use schema_compose::requirement_schema_compose_options_for_project;
 #[cfg(feature = "source-links")]
 pub use source_links::collect_rust_source_links;
+pub use tags::{
+    apply_custom_tags_to_schema, compose_options_from_json, compose_options_from_tag_set,
+    compose_options_to_json, custom_tags_from_marker_yaml, validate_requirement_tags, CustomTagSet,
+};
 pub use types::{
-    ArtifactRef, Link, LoadResult, ParameterValue, ProjectInfo, Requirement,
+    ArtifactRef, CustomTagDef, Link, LoadResult, ParameterValue, ProjectInfo, Requirement,
     RequirementSchemaComposeOptions, RequirementWithSource, SourceLink, SourceLinkKind,
     ValidationError,
 };

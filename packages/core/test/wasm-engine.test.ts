@@ -11,6 +11,7 @@ import {
   formatRequirementToYaml,
   generateSingleRequirementHtml,
   loadRequirements,
+  readRequirementSchemaComposeOptions,
   loadWasmBindings,
   initShallgraphWasm,
   parseRequirementContent,
@@ -155,6 +156,30 @@ satisfied_by:
     expect("error" in result).toBe(false);
     if ("error" in result) return;
     expect(result.requirement.id).toBe("SYS-001");
+  });
+
+  it("enforces custom tags from the project marker and schema", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "shallgraph-tags-"));
+    fs.mkdirSync(path.join(root, "requirements"));
+    fs.writeFileSync(
+      path.join(root, "shallgraph.yaml"),
+      "requirement_dirs:\n  - requirements\ntags:\n  priority:\n    values: [low, high]\n    required: true\n"
+    );
+    fs.writeFileSync(
+      path.join(root, "requirements", "GRD-TAG-001.req.yml"),
+      "id: GRD-TAG-001\ntitle: Tagged\nrequire: The system shall honor tags.\ntags:\n  priority: medium\n"
+    );
+    const loaded = await loadRequirements(root, root);
+    expect(loaded.errors.some((err) => err.message.includes('tag "priority"'))).toBe(true);
+    expect(loaded.errors.some((err) => err.path.endsWith("GRD-TAG-001.req.yml"))).toBe(true);
+
+    const compose = readRequirementSchemaComposeOptions(root);
+    const schema = exportRequirementFileJsonSchema(compose) as {
+      required?: string[];
+      properties?: { tags?: { properties?: { priority?: { enum?: string[] } } } };
+    };
+    expect(schema.properties?.tags?.properties?.priority?.enum).toEqual(["low", "high"]);
+    expect(schema.required).toEqual(expect.arrayContaining(["tags"]));
   });
 
   it("loads wasm from the package dist when process.cwd is not the repo root", () => {

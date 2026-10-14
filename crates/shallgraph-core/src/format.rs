@@ -109,6 +109,14 @@ fn parameter_to_yaml(value: &ParameterValue) -> Value {
     }
 }
 
+fn tags_to_yaml(tags: &IndexMap<String, serde_json::Value>) -> Value {
+    let mut map = Mapping::new();
+    for (key, value) in tags {
+        mapping_insert(&mut map, key, json_to_yaml(value));
+    }
+    Value::Mapping(map)
+}
+
 fn parameters_to_yaml(params: &IndexMap<String, ParameterValue>) -> Option<Value> {
     if params.is_empty() {
         return None;
@@ -228,6 +236,10 @@ pub fn format_requirement_to_yaml(requirement: &Requirement) -> String {
         if let Some(yaml) = attributes_to_yaml(attrs) {
             mapping_insert(&mut map, "attributes", yaml);
         }
+    }
+    // GRD-SYS-019: preserve custom tag entries, including an empty mapping.
+    if let Some(tags) = &requirement.tags {
+        mapping_insert(&mut map, "tags", tags_to_yaml(tags));
     }
     if let Some(refs) = &requirement.satisfied_by {
         if let Some(yaml) = artifact_refs_to_yaml(refs) {
@@ -398,6 +410,7 @@ mod tests {
             satisfied_by: None,
             verified_by: None,
             parameters: None,
+            tags: None,
         }
     }
 
@@ -491,6 +504,7 @@ mod tests {
                 extra: BTreeMap::new(),
             }]),
             parameters: Some(IndexMap::from([("p".into(), ParameterValue::Integer(1))])),
+            tags: None,
         });
         let lines: Vec<&str> = yaml.lines().filter(|l| !l.is_empty()).collect();
         assert!(lines[0].starts_with("id:"));
@@ -523,6 +537,7 @@ mod tests {
                 ("z".into(), ParameterValue::Bool(false)),
                 ("a".into(), ParameterValue::Bool(true)),
             ])),
+            tags: None,
         });
         let a_idx = yaml.find("apple:").unwrap();
         let z_attr = yaml.find("zebra:").unwrap();

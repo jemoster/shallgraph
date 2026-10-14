@@ -2,6 +2,8 @@
 
 use std::path::Path;
 
+use indexmap::IndexMap;
+use serde_json::{json, Map, Value};
 use shallgraph_core::{
     export_requirement_file_json_schema, format_requirement_to_yaml,
     generate_single_requirement_html_with_source_links, get_requirement_profile,
@@ -10,8 +12,6 @@ use shallgraph_core::{
     ArtifactLinkRenderOptions, ArtifactRef, GithubArtifactLinkContext, Link, ParameterValue,
     RequirementWithSource, REQUIREMENT_FILE_EXTENSION, STANDARD_PROFILE_ID,
 };
-use indexmap::IndexMap;
-use serde_json::{json, Map, Value};
 use wasm_bindgen::prelude::*;
 
 fn parameter_to_json(value: &ParameterValue) -> Value {
@@ -157,6 +157,12 @@ fn requirement_to_json(r: &RequirementWithSource) -> Value {
             ),
         );
     }
+    if let Some(tags) = &r.tags {
+        obj.insert(
+            "tags".into(),
+            Value::Object(tags.iter().map(|(k, v)| (k.clone(), v.clone())).collect()),
+        );
+    }
     obj.insert(
         "sourcePath".into(),
         Value::String(r.source_path.to_string_lossy().into_owned()),
@@ -168,6 +174,20 @@ fn requirement_to_json(r: &RequirementWithSource) -> Value {
         );
     }
     Value::Object(obj)
+}
+
+fn tags_from_json(value: Option<&Value>) -> Result<Option<IndexMap<String, Value>>, String> {
+    match value {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::Object(obj)) => {
+            let mut map = IndexMap::new();
+            for (key, item) in obj {
+                map.insert(key.clone(), item.clone());
+            }
+            Ok(Some(map))
+        }
+        Some(_) => Err("tags must be an object".into()),
+    }
 }
 
 fn artifacts_from_json(value: Option<&Value>) -> Result<Option<Vec<ArtifactRef>>, String> {
@@ -231,6 +251,7 @@ fn requirement_from_json(value: &Value) -> Result<RequirementWithSource, String>
         satisfied_by: artifacts_from_json(obj.get("satisfied_by"))?,
         verified_by: artifacts_from_json(obj.get("verified_by"))?,
         parameters: indexmap_from_object(obj.get("parameters"), parameter_from_json)?,
+        tags: tags_from_json(obj.get("tags"))?,
         source_path: Path::new(obj.get("sourcePath").and_then(Value::as_str).unwrap_or(""))
             .to_path_buf(),
         category_path,
@@ -320,11 +341,63 @@ pub fn wasm_format_requirement_to_yaml(requirement_json: &str) -> String {
 
 #[wasm_bindgen(js_name = exportRequirementFileJsonSchema)]
 pub fn wasm_export_requirement_file_json_schema(compose_json: Option<String>) -> String {
-    let options = compose_json
-        .as_deref()
-        .filter(|s| !s.is_empty() && *s != "null")
-        .map(|_| shallgraph_core::RequirementSchemaComposeOptions::default());
+    let options = match compose_json.as_deref() {
+        None | Some("") | Some("null") => None,
+        Some(raw) => match parse_json(raw) {
+            Ok(value) => match shallgraph_core::compose_options_from_json(&value) {
+                Ok(options) => Some(options),
+                Err(err) => return error_json("", &err, None),
+            },
+            Err(err) => return error_json("", &err, None),
+        },
+    };
     export_requirement_file_json_schema(options.as_ref()).to_string()
+}
+
+#[wasm_bindgen(js_name = validateCustomTags)]
+pub fn wasm_validate_custom_tags(
+    marker_yaml: &str,
+    marker_path: &str,
+    requirements_json: &str,
+) -> String {
+    let parsed = match parse_json(requirements_json) {
+        Ok(v) => v,
+        Err(err) => return error_json("", &err, None),
+    };
+    let arr = match parsed.as_array() {
+        Some(a) => a,
+        None => return error_json("", "validateCustomTags expects a JSON array", None),
+    };
+    let mut reqs = Vec::new();
+    for item in arr {
+        match requirement_from_json(item) {
+            Ok(r) => reqs.push(r),
+            Err(err) => return error_json("", &err, None),
+        }
+    }
+    let set = shallgraph_core::custom_tags_from_marker_yaml(marker_yaml, marker_path);
+    let mut errors = set.errors.clone();
+    errors.extend(shallgraph_core::validate_requirement_tags(&set, &reqs));
+    let body: Vec<Value> = errors
+        .into_iter()
+        .map(|err| {
+            json!({
+                "path": err.path,
+                "message": err.message,
+                "line": err.line,
+            })
+        })
+        .collect();
+    json!(body).to_string()
+}
+
+#[wasm_bindgen(js_name = customTagComposeOptions)]
+pub fn wasm_custom_tag_compose_options(marker_yaml: &str) -> String {
+    let set = shallgraph_core::custom_tags_from_marker_yaml(marker_yaml, "");
+    match shallgraph_core::compose_options_from_tag_set(&set) {
+        None => "null".to_string(),
+        Some(options) => shallgraph_core::compose_options_to_json(&options).to_string(),
+    }
 }
 
 fn artifact_links_from_json(raw: Option<&str>) -> Option<ArtifactLinkRenderOptions> {

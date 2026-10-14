@@ -8,17 +8,20 @@ use std::path::Path;
 use crate::discovery::find_root_marker_path;
 
 #[cfg(feature = "std-fs")]
+use crate::tags::{compose_options_from_tag_set, custom_tags_from_marker_yaml};
+
+#[cfg(feature = "std-fs")]
 use crate::types::RequirementSchemaComposeOptions;
 
-/// Currently reserved: project marker is read so future fields can map into compose options.
+/// GRD-SYS-009 / GRD-SYS-019: custom tags in the project root marker become schema compose options.
 #[cfg(feature = "std-fs")]
 pub fn requirement_schema_compose_options_for_project(
     project_root: &Path,
 ) -> Option<RequirementSchemaComposeOptions> {
     let marker = find_root_marker_path(project_root)?;
-    let _raw = std::fs::read_to_string(marker).ok()?;
-    // Future: map shallgraph.yaml fields into RequirementSchemaComposeOptions when schema composition uses them.
-    None
+    let raw = std::fs::read_to_string(&marker).ok()?;
+    let set = custom_tags_from_marker_yaml(&raw, &marker.display().to_string());
+    compose_options_from_tag_set(&set)
 }
 
 #[cfg(all(test, feature = "std-fs"))]
@@ -31,7 +34,8 @@ mod tests {
 
     fn temp_dir() -> std::path::PathBuf {
         let n = COUNTER.fetch_add(1, Ordering::Relaxed);
-        let dir = std::env::temp_dir().join(format!("shallgraph-compose-{n}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("shallgraph-compose-{n}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir

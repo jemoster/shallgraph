@@ -1,14 +1,26 @@
 import { glob } from "glob";
 import fs from "node:fs";
 import path from "node:path";
-import { parseRootMarker, parseRequirementContent, validateRequirements } from "./engine.js";
+import {
+  customTagComposeOptions,
+  parseRootMarker,
+  parseRequirementContent,
+  validateCustomTags,
+  validateRequirements,
+} from "./engine.js";
 import {
   REQUIREMENT_FILE_EXTENSIONS,
   ROOT_MARKER,
   ROOT_MARKER_FILENAMES,
   ROOT_MARKER_HINT,
 } from "./constants.js";
-import type { DiscoverResult, LoadResult, RequirementWithSource, ValidationError } from "./types.js";
+import type {
+  DiscoverResult,
+  LoadResult,
+  RequirementSchemaComposeOptions,
+  RequirementWithSource,
+  ValidationError,
+} from "./types.js";
 
 export { ROOT_MARKER, ROOT_MARKER_FILENAMES, ROOT_MARKER_HINT };
 
@@ -168,7 +180,30 @@ export async function loadRequirements(startDir: string, projectRoot?: string): 
     }
   }
   errors.push(...validateRequirements(requirements));
+  const markerPath = findRootMarkerPath(root);
+  if (markerPath !== null) {
+    try {
+      const raw = fs.readFileSync(markerPath, "utf-8");
+      errors.push(...validateCustomTags(raw, markerPath, requirements));
+    } catch {
+      // An unreadable marker is already reported by discovery.
+    }
+  }
   return { requirements, errors };
+}
+
+export function readRequirementSchemaComposeOptions(
+  projectRoot: string
+): RequirementSchemaComposeOptions | undefined {
+  const rootPath = findRootMarkerPath(path.resolve(projectRoot));
+  if (rootPath === null) return undefined;
+  let raw: string;
+  try {
+    raw = fs.readFileSync(rootPath, "utf-8");
+  } catch {
+    return undefined;
+  }
+  return customTagComposeOptions(raw);
 }
 
 export function loadActiveProfileId(projectRoot: string): string {

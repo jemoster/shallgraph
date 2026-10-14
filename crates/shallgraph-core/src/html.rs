@@ -984,6 +984,7 @@ mod tests {
                 satisfied_by: None,
                 verified_by: None,
                 parameters: None,
+                tags: None,
             },
             PathBuf::from(format!("/project/{id}.req.yml")),
         )

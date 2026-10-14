@@ -5,5 +5,9 @@ attributes:
   rationale: |
     Users need to login to access the system.
   status: active
+tags:
+  priority: low
+  component: frontend
+  concern: []
 links:
   - satisfies: SYS-001

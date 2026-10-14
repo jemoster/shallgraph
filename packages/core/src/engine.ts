@@ -50,6 +50,33 @@ export function formatRequirementToYaml(requirement: RequirementWithSource | { i
   return parseJsonResult<{ yaml: string }>(raw).yaml;
 }
 
+export function validateCustomTags(
+  markerYaml: string,
+  markerPath: string,
+  requirements: RequirementWithSource[]
+): ValidationError[] {
+  const raw = loadWasmBindings().validateCustomTags(
+    markerYaml,
+    markerPath,
+    JSON.stringify(requirements)
+  );
+  const err = parseMaybeError(raw);
+  if (err) return [err.error];
+  return parseJsonResult<ValidationError[]>(raw);
+}
+
+export function customTagComposeOptions(
+  markerYaml: string
+): RequirementSchemaComposeOptions | undefined {
+  const raw = loadWasmBindings().customTagComposeOptions(markerYaml);
+  if (!raw || raw === "null") return undefined;
+  const err = parseMaybeError(raw);
+  if (err) return undefined;
+  const parsed = parseJsonResult<RequirementSchemaComposeOptions>(raw);
+  if (!parsed.tags || parsed.tags.length === 0) return undefined;
+  return parsed;
+}
+
 export function exportRequirementFileJsonSchema(
   compose?: RequirementSchemaComposeOptions
 ): Record<string, unknown> {

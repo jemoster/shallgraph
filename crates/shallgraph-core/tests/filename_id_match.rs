@@ -18,6 +18,7 @@ fn req(id: &str, source_path: &str) -> RequirementWithSource {
             satisfied_by: None,
             verified_by: None,
             parameters: None,
+            tags: None,
         },
         PathBuf::from(source_path),
     )
