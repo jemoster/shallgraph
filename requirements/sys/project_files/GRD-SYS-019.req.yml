@@ -1,8 +1,8 @@
 id: GRD-SYS-019
 title: Custom tags
-require: Requirement validation shall enforce custom tags defined in {{ GRD-SYS-007:root_marker_filename }}, including each tag's allowed strings, required presence, single or multiple cardinality, null and empty allowances, and entry-count limit.
+require: Requirement validation shall enforce custom tags defined in {{ GRD-SYS-007:root_marker_filename }}.
 refinement: |
-  Custom tags are a project-defined controlled vocabulary. The active project root marker ({{ GRD-SYS-007:root_marker_filename }}, including a legacy marker accepted by GRD-SYS-007) may contain a top-level `tags` mapping. Omitting `tags` defines no custom tags. When `tags` is present it shall be a mapping from a tag name to that tag's definition. A tag name shall be a non-empty string. An empty mapping defines no custom tags.
+  Custom tags are a project-defined controlled vocabulary. The active project root marker {{ GRD-SYS-007:root_marker_filename }} may contain a top-level `tags` mapping. Omitting `tags` defines no custom tags. When `tags` is present it shall be a mapping from a tag name to that tag's definition. A tag name shall be a non-empty string. An empty mapping defines no custom tags.
 
   Each tag definition shall be a mapping. `values` is required and shall be a non-empty sequence of strings. Those strings are the finite set of valid values for that tag. Comparison is exact and case-sensitive. A duplicate string in `values` is a configuration error. YAML null inside `values` is a configuration error. Allowed strings are scoped to that tag.
 
