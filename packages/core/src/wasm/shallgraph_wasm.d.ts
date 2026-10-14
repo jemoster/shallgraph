@@ -6,6 +6,8 @@ export function parseRequirementContent(yaml: string, path: string): string;
 export function validateRequirements(requirementsJson: string): string;
 export function formatRequirementToYaml(requirementJson: string): string;
 export function exportRequirementFileJsonSchema(composeJson?: string | null): string;
+export function validateCustomTags(markerYaml: string, markerPath: string, requirementsJson: string): string;
+export function customTagComposeOptions(markerYaml: string): string;
 export function generateSingleRequirementHtml(
   requirementJson: string,
   allJson?: string | null,

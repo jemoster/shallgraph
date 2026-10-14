@@ -5,7 +5,11 @@ import {
   validateRequirements,
 } from "./engine.js";
 import { generateSingleRequirementHtml as renderSingleRequirementHtml } from "./html.js";
-import { parseRequirementFile, getActiveProfileId } from "./fs-adapter.js";
+import {
+  parseRequirementFile,
+  getActiveProfileId,
+  readRequirementSchemaComposeOptions,
+} from "./fs-adapter.js";
 import { STANDARD_PROFILE_ID } from "./constants.js";
 
 export interface RequirementProfile {
@@ -31,8 +35,8 @@ const standardProfile: RequirementProfile = {
   exportRequirementFileJsonSchema(compose) {
     return exportRequirementFileJsonSchema(compose);
   },
-  requirementSchemaComposeOptionsForProject() {
-    return undefined;
+  requirementSchemaComposeOptionsForProject(projectRoot: string) {
+    return readRequirementSchemaComposeOptions(projectRoot);
   },
   generateFullHtml() {
     throw new Error("Full-report HTML is provided by the native shallgraph CLI");

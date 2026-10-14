@@ -27,11 +27,14 @@ export {
   getActiveProfileId,
   loadRequirements,
   parseRequirementFile,
+  readRequirementSchemaComposeOptions,
 } from "./fs-adapter.js";
 
 export {
   parseRequirementContent,
   validateRequirements,
+  validateCustomTags,
+  customTagComposeOptions,
   formatRequirementToYaml,
   exportRequirementFileJsonSchema,
 } from "./engine.js";
@@ -56,6 +59,7 @@ export type {
   LoadResult,
   ParameterValue,
   Requirement,
+  CustomTagDefinition,
   RequirementSchemaComposeOptions,
   RequirementWithSource,
   ValidationError,

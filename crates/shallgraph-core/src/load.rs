@@ -70,6 +70,18 @@ pub fn load_requirements(
     }
 
     errors.extend(profile.validate_requirements(&requirements));
+    // GRD-SYS-019: custom tag configuration and requirement tag values.
+    if let Some(marker_path) = crate::discovery::find_root_marker_path(&root) {
+        if let Ok(raw) = std::fs::read_to_string(&marker_path) {
+            let tag_set =
+                crate::tags::custom_tags_from_marker_yaml(&raw, &marker_path.display().to_string());
+            errors.extend(tag_set.errors.clone());
+            errors.extend(crate::tags::validate_requirement_tags(
+                &tag_set,
+                &requirements,
+            ));
+        }
+    }
     Ok(LoadResult {
         requirements,
         errors,

@@ -13,6 +13,7 @@ const TOP_LEVEL_KEYS: &[&str] = &[
     "satisfied_by",
     "verified_by",
     "parameters",
+    "tags",
 ];
 
 pub fn parameters_valid(requirement: &RequirementWithSource) -> Vec<ValidationError> {

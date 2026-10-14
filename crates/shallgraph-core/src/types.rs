@@ -137,6 +137,8 @@ pub struct Requirement {
     pub verified_by: Option<Vec<ArtifactRef>>,
     /// GRD-SYS-005: Named parameters for templating in text fields.
     pub parameters: Option<IndexMap<String, ParameterValue>>,
+    /// GRD-SYS-019: Custom tag entries. `None` when the `tags` key is omitted.
+    pub tags: Option<IndexMap<String, serde_json::Value>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -150,6 +152,8 @@ pub struct RequirementWithSource {
     pub satisfied_by: Option<Vec<ArtifactRef>>,
     pub verified_by: Option<Vec<ArtifactRef>>,
     pub parameters: Option<IndexMap<String, ParameterValue>>,
+    /// GRD-SYS-019: Custom tag entries. `None` when the `tags` key is omitted.
+    pub tags: Option<IndexMap<String, serde_json::Value>>,
     /// Path to the YAML file this requirement was loaded from.
     pub source_path: PathBuf,
     /// GRD-SYS-004: Path segments from the requirement_dir that contains this file
@@ -169,6 +173,7 @@ impl RequirementWithSource {
             satisfied_by: req.satisfied_by,
             verified_by: req.verified_by,
             parameters: req.parameters,
+            tags: req.tags,
             source_path,
             category_path: None,
         }
@@ -186,6 +191,7 @@ impl RequirementWithSource {
             satisfied_by: self.satisfied_by.clone(),
             verified_by: self.verified_by.clone(),
             parameters: self.parameters.clone(),
+            tags: self.tags.clone(),
         }
     }
 }
@@ -227,7 +233,23 @@ pub struct LoadResult {
     pub errors: Vec<ValidationError>,
 }
 
+/// GRD-SYS-019: One custom tag defined in the project root marker.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CustomTagDef {
+    pub name: String,
+    pub values: Vec<String>,
+    pub required: bool,
+    pub multiple: bool,
+    pub allow_null: bool,
+    pub allow_empty: bool,
+    pub allow_null_entry: bool,
+    pub max_entries: Option<u64>,
+}
+
 /// Optional inputs when the JSON Schema must reflect project runtime configuration (GRD-SYS-009).
 /// Profiles (GRD-SYS-010) pass compose options from project configuration into schema export.
-#[derive(Debug, Clone, Default)]
-pub struct RequirementSchemaComposeOptions {}
+/// GRD-SYS-019: `tags` carries valid custom-tag definitions for the project.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct RequirementSchemaComposeOptions {
+    pub tags: Vec<CustomTagDef>,
+}

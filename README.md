@@ -119,6 +119,46 @@ Bootstrap creates a `requirements/` folder and lists it under `requirement_dirs`
 
 Choose how requirement YAML is interpreted and rendered. If omitted, `standard` is used.
 
+### `tags` in `shallgraph.yaml`
+
+Optional. Defines custom tags that validation checks on every requirement file. Omit `tags`, or set it to `{}`, when the project does not use custom tags.
+
+Each tag name maps to a definition:
+
+- `values` lists the allowed strings. Matching is exact and case-sensitive.
+- `required`, when true, means every requirement file includes that tag.
+- `multiple`, when true, means the requirement value is a list. Otherwise it is one string.
+- `allow_null`, on a single-value tag, allows YAML null.
+- `allow_empty`, on a multi-value tag, allows an empty list.
+- `allow_null_entry`, on a multi-value tag, allows a null item.
+- `max_entries`, on a multi-value tag, is an upper bound on the number of items, including null items.
+
+On a requirement file, `tags` is a separate mapping from `attributes`:
+
+```yaml
+tags:
+  priority:
+    values: [low, medium, high]
+    required: true
+  owner:
+    values: [unassigned, alice, bob]
+    allow_null: true
+  labels:
+    values: [safety, security, performance]
+    multiple: true
+    allow_null_entry: true
+    max_entries: 3
+```
+
+```yaml
+tags:
+  priority: high
+  owner: null
+  labels: [safety, null, performance]
+```
+
+Validation reports a bad tag definition against the project root marker and the tag name. It reports a bad requirement entry against that requirement file and the tag name. The effective requirement schema uses the same limits.
+
 ## Developer Documentation
 
 See `dev.md` for workspace layout, building from source, packaging, the editor extension, and pre-commit setup.

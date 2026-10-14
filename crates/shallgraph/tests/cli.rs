@@ -139,6 +139,31 @@ fn schema_json_and_yaml() {
     assert!(raw.contains("type:"));
 }
 
+#[shallgraph::verifies("GRD-SYS-019")]
+#[test]
+fn schema_includes_custom_tag_limits() {
+    let tmp = temp_dir();
+    fs::write(
+        tmp.join(ROOT_MARKER),
+        "requirement_dirs:\n  - requirements\ntags:\n  priority:\n    values: [low, high]\n    required: true\n",
+    )
+    .unwrap();
+    fs::create_dir_all(tmp.join("requirements")).unwrap();
+    let out = tmp.join("schema.json");
+    assert!(run_schema(&tmp, SchemaOutputFormat::JsonSchema, Some(&out)).unwrap());
+    let parsed: serde_json::Value =
+        serde_json::from_str(&fs::read_to_string(&out).unwrap()).unwrap();
+    assert_eq!(
+        parsed["properties"]["tags"]["properties"]["priority"]["enum"],
+        serde_json::json!(["low", "high"])
+    );
+    assert!(parsed["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|item| item == "tags"));
+}
+
 #[test]
 fn schema_fails_without_root() {
     let tmp = temp_dir();

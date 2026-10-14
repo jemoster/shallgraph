@@ -20,6 +20,7 @@ export interface Requirement {
   satisfied_by?: ArtifactRef[];
   verified_by?: ArtifactRef[];
   parameters?: Record<string, ParameterValue>;
+  tags?: Record<string, unknown>;
 }
 
 export interface RequirementWithSource extends Requirement {
@@ -54,4 +55,17 @@ export type ArtifactLinkRenderOptions = {
   };
 };
 
-export type RequirementSchemaComposeOptions = Record<string, never>;
+export interface CustomTagDefinition {
+  name: string;
+  values: string[];
+  required: boolean;
+  multiple: boolean;
+  allowNull: boolean;
+  allowEmpty: boolean;
+  allowNullEntry: boolean;
+  maxEntries?: number | null;
+}
+
+export interface RequirementSchemaComposeOptions {
+  tags?: CustomTagDefinition[];
+}

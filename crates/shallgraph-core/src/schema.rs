@@ -19,6 +19,7 @@ const ALLOWED_KEYS: &[&str] = &[
     "satisfied_by",
     "verified_by",
     "parameters",
+    "tags",
 ];
 
 fn mapping_key(key: &str) -> Value {
@@ -217,6 +218,7 @@ pub fn parse_requirement_value(data: &Value) -> Result<Requirement, String> {
         satisfied_by: None,
         verified_by: None,
         parameters: None,
+        tags: None,
     };
 
     if let Some(v) = obj.get(mapping_key("attributes")) {
@@ -234,15 +236,35 @@ pub fn parse_requirement_value(data: &Value) -> Result<Requirement, String> {
     if let Some(v) = obj.get(mapping_key("parameters")) {
         req.parameters = parse_parameters(v);
     }
+    if let Some(v) = obj.get(mapping_key("tags")) {
+        req.tags = Some(parse_tags(v)?);
+    }
 
     Ok(req)
 }
 
+fn parse_tags(value: &Value) -> Result<IndexMap<String, serde_json::Value>, String> {
+    let mapping = match value {
+        Value::Mapping(m) => m,
+        _ => return Err("tags: expected a mapping".to_string()),
+    };
+    let mut out = IndexMap::new();
+    for (key, item) in mapping {
+        let name = match key {
+            Value::String(s) => s.clone(),
+            _ => return Err("tags: tag names must be strings".to_string()),
+        };
+        out.insert(name, yaml_to_json(item));
+    }
+    Ok(out)
+}
+
 /// Export JSON Schema (draft-7 compatible) for requirement YAML files (GRD-SYS-009).
+/// GRD-SYS-019: compose options add custom-tag constraints for the project.
 pub fn export_requirement_file_json_schema(
-    _options: Option<&crate::types::RequirementSchemaComposeOptions>,
+    options: Option<&crate::types::RequirementSchemaComposeOptions>,
 ) -> serde_json::Value {
-    serde_json::json!({
+    let mut schema = serde_json::json!({
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "ShallGraph requirement",
         "description": "YAML format for a single requirement file (id, title, require, refinement, attributes, links, satisfied_by, verified_by).",
@@ -305,7 +327,11 @@ pub fn export_requirement_file_json_schema(
                 "description": "Named parameters for templating in text fields (string, number, or boolean values)."
             }
         }
-    })
+    });
+    if let Some(options) = options {
+        crate::tags::apply_custom_tags_to_schema(&mut schema, &options.tags);
+    }
+    schema
 }
 
 #[cfg(test)]

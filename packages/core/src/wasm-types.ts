@@ -6,6 +6,8 @@ export interface WasmBindings {
   validateRequirements(requirementsJson: string): string;
   formatRequirementToYaml(requirementJson: string): string;
   exportRequirementFileJsonSchema(composeJson?: string | null): string;
+  validateCustomTags(markerYaml: string, markerPath: string, requirementsJson: string): string;
+  customTagComposeOptions(markerYaml: string): string;
   generateSingleRequirementHtml(
     requirementJson: string,
     allJson?: string | null,
