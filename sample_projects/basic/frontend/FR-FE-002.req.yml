@@ -6,5 +6,9 @@ attributes:
     High latency renders live monitoring ineffective for security personnel 
     attempting to respond to real-time events.
   status: active
+tags:
+  priority: high
+  component: frontend
+  concern: [latency]
 links:
   - satisfies: SYS-002

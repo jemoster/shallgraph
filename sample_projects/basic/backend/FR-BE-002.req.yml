@@ -6,5 +6,9 @@ attributes:
     Necessary for forensic analysis and compliance audits to verify who 
     accessed which feed and when.
   status: active
+tags:
+  priority: high
+  component: backend
+  concern: [privacy, security]
 links:
   - satisfies: SYS-001

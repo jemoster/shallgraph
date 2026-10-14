@@ -159,6 +159,8 @@ tags:
 
 Validation reports a bad tag definition against the project root marker and the tag name. It reports a bad requirement entry against that requirement file and the tag name. The effective requirement schema uses the same limits.
 
+`sample_projects/basic` is a worked example: `priority` is required, `component` may be null, and `concern` is a list that may be empty or contain a null item.
+
 ## Developer Documentation
 
 See `dev.md` for workspace layout, building from source, packaging, the editor extension, and pre-commit setup.

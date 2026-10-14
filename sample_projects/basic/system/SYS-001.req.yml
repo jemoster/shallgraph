@@ -6,3 +6,7 @@ attributes:
     Ensures compliance with privacy standards for government and military facilities 
     to prevent unauthorized interception of sensitive visual data.
   status: active
+tags:
+  priority: high
+  component: platform
+  concern: [privacy, security]

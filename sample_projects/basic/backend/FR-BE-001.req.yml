@@ -6,5 +6,9 @@ attributes:
     Military and government networks often have strict firewall rules; 
     traversal is necessary for the SaaS model to function.
   status: active
+tags:
+  priority: medium
+  component: backend
+  concern: [scale, security]
 links:
   - satisfies: SYS-002

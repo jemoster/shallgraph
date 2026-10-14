@@ -75,6 +75,29 @@ fn schema_json_stdout_from_sample() {
     assert!(out.status.success());
     let parsed: serde_json::Value = serde_json::from_slice(&out.stdout).unwrap();
     assert_eq!(parsed["type"], "object");
+    assert!(parsed["required"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|value| value == "tags"));
+    let tags = &parsed["properties"]["tags"];
+    assert_eq!(tags["required"], serde_json::json!(["priority"]));
+    assert_eq!(
+        tags["properties"]["priority"]["enum"],
+        serde_json::json!(["low", "medium", "high"])
+    );
+    assert_eq!(
+        tags["properties"]["component"]["enum"],
+        serde_json::json!(["frontend", "backend", "platform", null])
+    );
+    let concern = &tags["properties"]["concern"];
+    assert_eq!(concern["type"], "array");
+    assert_eq!(concern["maxItems"], 3);
+    assert!(concern.get("minItems").is_none());
+    assert_eq!(
+        concern["items"]["enum"],
+        serde_json::json!(["privacy", "latency", "scale", "security", null])
+    );
 }
 
 #[test]

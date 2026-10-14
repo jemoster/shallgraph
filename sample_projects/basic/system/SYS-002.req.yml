@@ -6,5 +6,9 @@ attributes:
     Required to meet the scalability needs of enterprise-tier commercial customers 
     monitoring large-scale facilities.
   status: active
+tags:
+  priority: high
+  component: backend
+  concern: [scale]
 parameters:
   max_streams: 50
