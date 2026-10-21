@@ -99,6 +99,22 @@ export function buildRenderedWebviewHtml(
   );
 }
 
+/** Place every requirement document from one file into a single rendered document. */
+export function combineRequirementHtml(parts: string[]): string {
+  if (parts.length === 0) return "";
+  const first = parts[0]!;
+  if (parts.length === 1) return first;
+  const rest = parts.slice(1).map((html) => {
+    const match = html.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    return match?.[1] ?? html;
+  });
+  const insertion = rest.join("\n");
+  if (first.includes("</body>")) {
+    return first.replace("</body>", `${insertion}</body>`);
+  }
+  return `${first}\n${insertion}`;
+}
+
 /** GRD-VSC-003: Shown when the current YAML cannot be rendered. */
 export function buildRenderedErrorHtml(
   message: string,

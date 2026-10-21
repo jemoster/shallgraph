@@ -1,10 +1,11 @@
 id: GRD-VALID-002
 title: Filename matches requirement id
-require: The tool shall validate that requirement files are named after their id and that the id matches the file name.
-refinement: File extension must be {{ GRD-SYS-007:requirement_file_extension }}.
+require: The tool shall validate that a single-document requirement file is named after its requirement id.
+refinement: |
+  The file extension must be {{ GRD-SYS-007:requirement_file_extension }}. The comparison is between the requirement id and the file name without that extension. This check applies when the file contains one requirement document, including a file that begins with a YAML document-start marker. When the file contains multiple requirement documents, as defined by GRD-SYS-020, the tool shall not require the file name to match any requirement id in that file.
 attributes:
   rationale: |
-    This ensures that requirements are easy to find and identify.
+    Naming a single-requirement file after its id keeps that requirement easy to find. A file that holds several requirements has no single id for the name to match.
   status: active
 links:
   - satisfies: GRD-VALID-001

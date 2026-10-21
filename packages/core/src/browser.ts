@@ -12,6 +12,7 @@ export {
 
 export {
   parseRequirementContent,
+  parseRequirementDocuments,
   validateRequirements,
   formatRequirementToYaml,
   exportRequirementFileJsonSchema,

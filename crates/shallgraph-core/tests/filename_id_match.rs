@@ -55,3 +55,27 @@ fn mismatch_and_wrong_extension() {
         .message
         .contains(&requirement_file_extensions_display()));
 }
+
+#[test]
+fn multi_document_file_skips_id_match_and_still_checks_extension() {
+    let mut r = req("SYS-001", "/project/requirements/bundle.req.yml");
+    r.multi_document = true;
+    assert!(filename_id_match(&r).is_empty());
+
+    let mut bad = req("SYS-001", "/project/requirements/bundle.json");
+    bad.multi_document = true;
+    let errors = filename_id_match(&bad);
+    assert_eq!(errors.len(), 1);
+    assert!(errors[0]
+        .message
+        .contains(&requirement_file_extensions_display()));
+}
+
+#[test]
+fn leading_document_marker_still_requires_filename_match() {
+    let r = req("SYS-001", "/project/requirements/OTHER.req.yml");
+    assert!(!r.multi_document);
+    assert!(filename_id_match(&r)
+        .iter()
+        .any(|e| e.message.contains("does not match filename")));
+}

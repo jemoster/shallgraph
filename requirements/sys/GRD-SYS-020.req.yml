@@ -1,0 +1,30 @@
+id: GRD-SYS-020
+title: Multi-document requirement files
+require: The tool shall load every requirement document from a requirement file that contains multiple YAML documents.
+refinement: |
+  A requirement file shall contain at least one requirement document. It may hold one requirement or several requirements in one YAML stream. Separate documents with a line whose only content is `---`. A `---` before the first document is allowed and does not create an extra requirement. The optional document-end marker `...` on its own line is allowed. A document-start marker with no following content, including a trailing `---`, shall not count as a requirement. An empty document between two requirement documents shall be rejected.
+
+  Each document shall be one requirement mapping, with its own id and the same fields as a single-document requirement file. The tool shall load each document as a separate requirement. Requirements loaded from the same file share that file as their source path. Validation errors shall identify that file and the line of the offending content. Requirement ids remain unique across the project, including among documents in the same file (GRD-VALID-003).
+
+  The file name shall still use {{ GRD-SYS-007:requirement_file_extension }}. A file that contains one requirement document shall be named after that requirement's id (GRD-VALID-002), including when the file begins with `---`. A file that contains more than one requirement document shall be accepted whether or not its file name matches any id in the file.
+
+  Formatting a multi-document requirement file shall keep every requirement document in that same file and shall not split them into separate files or drop a document.
+
+  For example:
+
+  ```yaml
+  id: SYS-001
+  title: End-to-End Encryption
+  require: The system shall encrypt all video streams.
+  ---
+  id: SYS-002
+  title: Multi-Stream Support
+  require: The backend shall support concurrent streaming.
+  ```
+attributes:
+  rationale: |
+    Authors sometimes want several related requirements in one file, using the same multi-document YAML stream used by tools such as Kubernetes, without a single id for that file's name to match.
+  status: active
+links:
+  - satisfies: GRD-SYS-001
+  - satisfies: GRD-SYS-002

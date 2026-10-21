@@ -267,14 +267,14 @@ pub fn export_requirement_file_json_schema(
     let mut schema = serde_json::json!({
         "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "ShallGraph requirement",
-        "description": "YAML format for a single requirement file (id, title, require, refinement, attributes, links, satisfied_by, verified_by).",
+        "description": "YAML format for one requirement document (id, title, require, refinement, attributes, links, satisfied_by, verified_by). A file may contain several documents separated by a line that is only ---.",
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "title", "require"],
         "properties": {
             "id": {
                 "type": ["string", "number", "boolean"],
-                "description": "Unique requirement identifier (e.g. GRD-HTML-001). Must match the filename without extension."
+                "description": "Unique requirement identifier (e.g. GRD-HTML-001). When the file contains one requirement document, the id matches the filename without the extension. When the file contains several requirement documents, the id does not have to match the filename."
             },
             "title": {
                 "type": ["string", "number", "boolean"],

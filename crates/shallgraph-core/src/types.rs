@@ -159,6 +159,11 @@ pub struct RequirementWithSource {
     /// GRD-SYS-004: Path segments from the requirement_dir that contains this file
     /// to the file's directory (relative). Empty = file is directly under a requirement_dir.
     pub category_path: Option<Vec<String>>,
+    /// GRD-SYS-020: True when this requirement was loaded from a file that contains
+    /// more than one requirement document. Filename/id matching is skipped in that case.
+    pub multi_document: bool,
+    /// GRD-SYS-020: 1-based line where this requirement document starts.
+    pub document_line: Option<usize>,
 }
 
 impl RequirementWithSource {
@@ -176,6 +181,8 @@ impl RequirementWithSource {
             tags: req.tags,
             source_path,
             category_path: None,
+            multi_document: false,
+            document_line: None,
         }
     }
 

@@ -15,6 +15,7 @@ import {
   loadWasmBindings,
   initShallgraphWasm,
   parseRequirementContent,
+  parseRequirementDocuments,
   validateRequirements,
 } from "@shallgraph/core";
 
@@ -148,6 +149,37 @@ satisfied_by:
     expect(result.requirements.length).toBeGreaterThan(0);
     expect(result.requirements.some((r) => r.id === "SYS-001")).toBe(true);
     expect(result.requirements.some((r) => r.sourcePath.includes("SYS-001"))).toBe(true);
+  });
+
+  it("loads every document from a multi-document file and skips the filename match", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "shallgraph-multidoc-"));
+    fs.mkdirSync(path.join(root, "requirements"));
+    fs.writeFileSync(path.join(root, "shallgraph.yaml"), "requirement_dirs:\n  - requirements\n");
+    const body = `id: SYS-001
+title: End-to-End Encryption
+require: The system shall encrypt all video streams.
+---
+id: SYS-002
+title: Multi-Stream Support
+require: The backend shall support concurrent streaming.
+`;
+    fs.writeFileSync(path.join(root, "requirements", "bundle.req.yml"), body);
+    const parsed = parseRequirementDocuments(body, path.join(root, "requirements", "bundle.req.yml"));
+    expect(parsed.errors).toEqual([]);
+    expect(parsed.requirements.map((r) => r.id)).toEqual(["SYS-001", "SYS-002"]);
+    expect(parsed.requirements.every((r) => r.multiDocument)).toBe(true);
+
+    const loaded = await loadRequirements(root, root);
+    expect(loaded.errors).toEqual([]);
+    expect(loaded.requirements.map((r) => r.id)).toEqual(["SYS-001", "SYS-002"]);
+
+    const mismatch = validateRequirements([
+      {
+        ...parsed.requirements[0]!,
+        multiDocument: false,
+      },
+    ]);
+    expect(mismatch.some((err) => err.message.includes("does not match filename"))).toBe(true);
   });
 
   it("parses a sample requirement file from disk", () => {

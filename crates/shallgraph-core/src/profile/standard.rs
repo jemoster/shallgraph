@@ -7,7 +7,9 @@ use crate::html::{
     generate_full_html_with_artifact_links, generate_single_requirement_html_with_source_links,
 };
 use crate::markdown::generate_full_markdown_with_artifact_links;
-use crate::parse::parse_requirement_content;
+use crate::parse::{
+    parse_requirement_content, parse_requirement_documents, RequirementDocumentParse,
+};
 use crate::rules::validate_requirements;
 use crate::schema::export_requirement_file_json_schema;
 #[cfg(feature = "std-fs")]
@@ -49,6 +51,14 @@ impl RequirementProfile for StandardProfile {
         file_path: &Path,
     ) -> Result<RequirementWithSource, ValidationError> {
         parse_requirement_content(content, file_path)
+    }
+
+    fn parse_requirement_documents(
+        &self,
+        content: &str,
+        file_path: &Path,
+    ) -> RequirementDocumentParse {
+        parse_requirement_documents(content, file_path)
     }
 
     fn validate_requirements(

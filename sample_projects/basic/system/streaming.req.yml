@@ -1,0 +1,30 @@
+id: CAM-001
+title: Camera stream authentication
+require: The system shall authenticate each video stream before it leaves the camera.
+attributes:
+  rationale: |
+    Unauthenticated streams can be injected onto the network and mistaken for live facility video.
+  status: active
+tags:
+  priority: high
+  component: platform
+  concern:
+  - security
+  - privacy
+---
+id: CAM-002
+title: Authenticated session limit
+require: The backend shall limit each account to {{:max_sessions}} concurrent authenticated streams.
+attributes:
+  rationale: |
+    A bounded session count keeps one account from exhausting encoder capacity.
+  status: active
+tags:
+  priority: medium
+  component: backend
+  concern:
+  - scale
+links:
+- satisfies: CAM-001
+parameters:
+  max_sessions: 10

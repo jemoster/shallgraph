@@ -5,6 +5,7 @@ import {
   customTagComposeOptions,
   parseRootMarker,
   parseRequirementContent,
+  parseRequirementDocuments,
   validateCustomTags,
   validateRequirements,
 } from "./engine.js";
@@ -170,11 +171,16 @@ export async function loadRequirements(startDir: string, projectRoot?: string): 
   const requirements: RequirementWithSource[] = [];
   const errors: ValidationError[] = [];
   for (const filePath of requirementPaths) {
-    const result = parseRequirementFile(filePath);
-    if ("error" in result) {
-      errors.push(result.error);
-    } else {
-      const req = result.requirement;
+    let raw: string;
+    try {
+      raw = fs.readFileSync(filePath, "utf-8");
+    } catch (err) {
+      errors.push({ path: filePath, message: String(err) });
+      continue;
+    }
+    const parsed = parseRequirementDocuments(raw, filePath);
+    errors.push(...parsed.errors);
+    for (const req of parsed.requirements) {
       req.categoryPath = categoryPathFor(filePath, requirementDirs);
       requirements.push(req);
     }

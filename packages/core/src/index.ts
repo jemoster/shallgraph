@@ -32,6 +32,7 @@ export {
 
 export {
   parseRequirementContent,
+  parseRequirementDocuments,
   validateRequirements,
   validateCustomTags,
   customTagComposeOptions,

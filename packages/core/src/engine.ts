@@ -36,6 +36,16 @@ export function parseRequirementContent(
   return parseJsonResult<{ requirement: RequirementWithSource }>(raw);
 }
 
+export function parseRequirementDocuments(
+  content: string,
+  filePath: string
+): { requirements: RequirementWithSource[]; errors: ValidationError[] } {
+  const raw = loadWasmBindings().parseRequirementDocuments(content, filePath);
+  const err = parseMaybeError(raw);
+  if (err) return { requirements: [], errors: [err.error] };
+  return parseJsonResult<{ requirements: RequirementWithSource[]; errors: ValidationError[] }>(raw);
+}
+
 export function validateRequirements(requirements: RequirementWithSource[]): ValidationError[] {
   const raw = loadWasmBindings().validateRequirements(JSON.stringify(requirements));
   const err = parseMaybeError(raw);

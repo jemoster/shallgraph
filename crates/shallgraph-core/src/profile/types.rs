@@ -1,6 +1,7 @@
 //! GRD-SYS-010: Active profile drives requirement document shape, validation, and HTML output.
 
 use crate::artifact_links::ArtifactLinkRenderOptions;
+use crate::parse::RequirementDocumentParse;
 use crate::types::{
     RequirementSchemaComposeOptions, RequirementWithSource, SourceLink, ValidationError,
 };
@@ -18,6 +19,12 @@ pub trait RequirementProfile: Send + Sync {
         content: &str,
         file_path: &Path,
     ) -> Result<RequirementWithSource, ValidationError>;
+    /// GRD-SYS-020: Load every requirement document in a YAML stream.
+    fn parse_requirement_documents(
+        &self,
+        content: &str,
+        file_path: &Path,
+    ) -> RequirementDocumentParse;
     fn validate_requirements(&self, requirements: &[RequirementWithSource])
         -> Vec<ValidationError>;
     fn export_requirement_file_json_schema(

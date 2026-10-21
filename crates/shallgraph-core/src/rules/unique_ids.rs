@@ -8,18 +8,29 @@ pub fn unique_ids(requirements: &[RequirementWithSource]) -> Vec<ValidationError
 
     for r in requirements {
         if let Some(existing) = by_id.iter().find(|(id, _)| *id == r.id.as_str()) {
-            errors.push(ValidationError::new(
-                r.source_path.display().to_string(),
-                format!(
-                    "Duplicate requirement id: {} (also in {})",
-                    r.id,
-                    existing.1.source_path.display()
-                ),
-            ));
+            let message = format!(
+                "Duplicate requirement id: {} (also in {})",
+                r.id,
+                location(existing.1)
+            );
+            let err = match r.document_line {
+                Some(line) => {
+                    ValidationError::with_line(r.source_path.display().to_string(), message, line)
+                }
+                None => ValidationError::new(r.source_path.display().to_string(), message),
+            };
+            errors.push(err);
         } else {
             by_id.push((r.id.as_str(), r));
         }
     }
 
     errors
+}
+
+fn location(requirement: &RequirementWithSource) -> String {
+    match requirement.document_line {
+        Some(line) => format!("{}:{line}", requirement.source_path.display()),
+        None => requirement.source_path.display().to_string(),
+    }
 }

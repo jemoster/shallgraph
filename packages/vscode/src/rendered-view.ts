@@ -12,18 +12,18 @@ import {
   getRequirementProfile,
   loadActiveProfile,
   loadRequirements,
+  parseRequirementDocuments,
   STANDARD_PROFILE_ID,
 } from "@shallgraph/core";
 import type { RequirementProfile } from "@shallgraph/core";
-import type {
-  ArtifactLinkRenderOptions,
-  ArtifactRef,
-  ParameterValue,
-  RequirementWithSource,
-} from "@shallgraph/core";
-import { parse as parseYaml } from "yaml";
+import type { ArtifactLinkRenderOptions, RequirementWithSource } from "@shallgraph/core";
 import { resolveRequirementPath } from "./link-resolver.js";
-import { buildRenderedErrorHtml, buildRenderedWebviewHtml, requirementIdFromHashHref } from "./rendered-html.js";
+import {
+  buildRenderedErrorHtml,
+  buildRenderedWebviewHtml,
+  combineRequirementHtml,
+  requirementIdFromHashHref,
+} from "./rendered-html.js";
 
 export const RENDERED_VIEW_TYPE = "shallgraph.requirementRendered";
 export const SHOW_RENDERED_COMMAND = "shallgraph.requirement.showRendered";
@@ -87,72 +87,6 @@ function discoverGithubLinkContext(projectRoot: string): ArtifactLinkRenderOptio
     projectRootRel,
     projectRoot: projectAbs,
   };
-}
-
-function parseRequirementFromText(uri: vscode.Uri, text: string): RequirementWithSource {
-  const data = parseYaml(text) as Record<string, unknown> | null;
-  if (!data || typeof data !== "object") {
-    throw new Error("Expected a YAML object with requirement fields.");
-  }
-
-  const id = data.id != null ? String(data.id) : undefined;
-  const title = data.title != null ? String(data.title) : undefined;
-  const require = data.require != null ? String(data.require) : "";
-  const refinement = data.refinement != null ? String(data.refinement) : "";
-
-  if (!id) throw new Error("Missing required field: id");
-  if (!title) throw new Error("Missing required field: title");
-  if (!require) throw new Error("Missing required field: require");
-
-  const parameters = normalizeParameters(data.parameters);
-  return {
-    id,
-    title,
-    require,
-    refinement,
-    attributes:
-      typeof data.attributes === "object" && data.attributes !== null
-        ? (data.attributes as Record<string, unknown>)
-        : undefined,
-    links: Array.isArray(data.links) ? (data.links as RequirementWithSource["links"]) : undefined,
-    satisfied_by: normalizeArtifactRefsFromYaml(data.satisfied_by),
-    verified_by: normalizeArtifactRefsFromYaml(data.verified_by),
-    parameters: parameters && Object.keys(parameters).length > 0 ? parameters : undefined,
-    sourcePath: uri.fsPath,
-  };
-}
-
-function normalizeArtifactRefsFromYaml(refs: unknown): ArtifactRef[] | undefined {
-  if (!Array.isArray(refs)) return undefined;
-  const out: ArtifactRef[] = [];
-  for (const item of refs) {
-    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-    const obj = item as Record<string, unknown>;
-    const artifact = obj.artifact != null ? String(obj.artifact).trim() : "";
-    if (!artifact) continue;
-    const entry: ArtifactRef = { artifact };
-    if (obj.description != null) {
-      const desc = String(obj.description).trim();
-      if (desc) entry.description = desc;
-    }
-    out.push(entry);
-  }
-  return out.length > 0 ? out : undefined;
-}
-
-function normalizeParameters(parameters: unknown): Record<string, ParameterValue> | undefined {
-  if (parameters == null || typeof parameters !== "object" || Array.isArray(parameters)) {
-    return undefined;
-  }
-  const out: Record<string, ParameterValue> = {};
-  for (const [k, v] of Object.entries(parameters as Record<string, unknown>)) {
-    if (typeof k !== "string" || !k.trim()) continue;
-    if (v === null || v === undefined) continue;
-    if (typeof v === "string" || typeof v === "number" || typeof v === "boolean") {
-      out[k] = v;
-    }
-  }
-  return Object.keys(out).length > 0 ? out : undefined;
 }
 
 async function readRequirementText(uri: vscode.Uri): Promise<string> {
@@ -300,21 +234,28 @@ export class RequirementRenderedEditorProvider implements vscode.CustomReadonlyE
     const options = { cspSource: webview.cspSource, nonce: randomBytes(16).toString("base64url") };
     try {
       const text = await readRequirementText(uri);
-      const requirement = parseRequirementFromText(uri, text);
+      const parsed = parseRequirementDocuments(text, uri.fsPath);
+      if (parsed.errors.length > 0 || parsed.requirements.length === 0) {
+        const message =
+          parsed.errors
+            .map((err) => (err.line != null ? `${err.message} (line ${err.line})` : err.message))
+            .join("\n") || "Requirement file contains no requirement document";
+        return buildRenderedErrorHtml(message, options);
+      }
+      const fileRequirements = parsed.requirements.map((requirement) => ({
+        ...requirement,
+        sourcePath: uri.fsPath,
+      }));
       let allRequirements: RequirementWithSource[] | undefined;
       const folder = vscode.workspace.getWorkspaceFolder(uri);
       if (folder) {
         try {
           const result = await loadRequirements(folder.uri.fsPath);
-          let list = result.requirements;
-          const idx = list.findIndex((r) => r.id === requirement.id);
-          if (idx >= 0) {
-            list = [...list];
-            list[idx] = requirement;
-          } else {
-            list = [requirement, ...list];
+          const byId = new Map(result.requirements.map((requirement) => [requirement.id, requirement]));
+          for (const requirement of fileRequirements) {
+            byId.set(requirement.id, requirement);
           }
-          allRequirements = list;
+          allRequirements = [...byId.values()];
         } catch {
           allRequirements = undefined;
         }
@@ -325,10 +266,12 @@ export class RequirementRenderedEditorProvider implements vscode.CustomReadonlyE
         if (projectRoot) profile = loadActiveProfile(projectRoot);
       }
       const projectRoot = folder?.uri.fsPath ?? path.dirname(uri.fsPath);
-      const baseHtml = profile.generateSingleRequirementHtml(requirement, allRequirements, {
-        artifactLinks: { github: discoverGithubLinkContext(projectRoot) },
-      });
-      return buildRenderedWebviewHtml(baseHtml, options);
+      const parts = fileRequirements.map((requirement) =>
+        profile.generateSingleRequirementHtml(requirement, allRequirements, {
+          artifactLinks: { github: discoverGithubLinkContext(projectRoot) },
+        })
+      );
+      return buildRenderedWebviewHtml(combineRequirementHtml(parts), options);
     } catch (err) {
       const message = `[ShallGraph] Failed to render ${uri.fsPath}: ${String(err)}`;
       this.log(message);

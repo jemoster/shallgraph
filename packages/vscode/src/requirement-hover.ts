@@ -1,8 +1,9 @@
 /**
  * GRD-VSC-007: Hover shows requirement title for requirement ids in YAML text (links and plain references).
  */
+import fs from "node:fs";
 import * as vscode from "vscode";
-import { parseRequirementFile } from "@shallgraph/core";
+import { parseRequirementDocuments } from "@shallgraph/core";
 import { resolveRequirementPath, type LogFn } from "./link-resolver.js";
 import { findRequirementIdAtLinePosition } from "./requirement-id-at-position.js";
 
@@ -35,16 +36,30 @@ export function registerRequirementHoverProvider(
       if (!targetPath) {
         return undefined;
       }
-      const parsed = parseRequirementFile(targetPath);
-      if ("error" in parsed) {
+      let raw: string;
+      try {
+        raw = fs.readFileSync(targetPath, "utf8");
+      } catch (err) {
         const md = new vscode.MarkdownString();
         md.isTrusted = false;
         md.appendMarkdown(`**${id}**`);
         md.appendText("\n\n");
-        md.appendText(`Could not read title: ${parsed.error.message}`);
+        md.appendText(`Could not read title: ${String(err)}`);
         return new vscode.Hover(md);
       }
-      const title = parsed.requirement.title;
+      const parsed = parseRequirementDocuments(raw, targetPath);
+      const requirement = parsed.requirements.find((item) => item.id === id);
+      if (!requirement) {
+        const md = new vscode.MarkdownString();
+        md.isTrusted = false;
+        md.appendMarkdown(`**${id}**`);
+        md.appendText("\n\n");
+        md.appendText(
+          `Could not read title: ${parsed.errors[0]?.message ?? "requirement was not found in the file"}`
+        );
+        return new vscode.Hover(md);
+      }
+      const title = requirement.title;
       const md = new vscode.MarkdownString();
       md.isTrusted = false;
       md.appendMarkdown(`**${title}**`);
