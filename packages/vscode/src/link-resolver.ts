@@ -1,5 +1,10 @@
+import fs from "node:fs";
 import path from "node:path";
-import { discoverRequirementPaths, requirementIdFromFilename } from "@shallgraph/core";
+import {
+  discoverRequirementPaths,
+  parseRequirementDocuments,
+  requirementIdFromFilename,
+} from "@shallgraph/core";
 
 const cache = new Map<string, Map<string, string>>();
 
@@ -43,10 +48,24 @@ async function getIdToPathMap(
 
   idToPath = new Map<string, string>();
   for (const filePath of paths) {
-    const basename = path.basename(filePath);
-    const id = requirementIdFromFilename(basename);
-    if (id !== null) {
-      idToPath.set(id, filePath);
+    let raw: string;
+    try {
+      raw = fs.readFileSync(filePath, "utf8");
+    } catch {
+      continue;
+    }
+    const parsed = parseRequirementDocuments(raw, filePath);
+    if (parsed.requirements.length > 0) {
+      for (const requirement of parsed.requirements) {
+        if (!idToPath.has(requirement.id)) {
+          idToPath.set(requirement.id, filePath);
+        }
+      }
+    } else {
+      const id = requirementIdFromFilename(path.basename(filePath));
+      if (id !== null && !idToPath.has(id)) {
+        idToPath.set(id, filePath);
+      }
     }
   }
   cache.set(workspaceRoot, idToPath);

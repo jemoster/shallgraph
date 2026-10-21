@@ -2,7 +2,12 @@
  * GRD-VSC-003 / GRD-VSC-006: The in-tab rendered document is report HTML plus a
  * requirement-link handler. It does not include a field editor.
  */
-import { buildRenderedErrorHtml, buildRenderedWebviewHtml, requirementIdFromHashHref } from "../src/rendered-html";
+import {
+  buildRenderedErrorHtml,
+  buildRenderedWebviewHtml,
+  combineRequirementHtml,
+  requirementIdFromHashHref,
+} from "../src/rendered-html";
 
 const options = { cspSource: "https://example.vscode-cdn.net", nonce: "test-nonce" };
 
@@ -23,6 +28,17 @@ describe("GRD-VSC-003 rendered webview HTML", () => {
     expect(html).toContain('nonce="test-nonce"');
     expect(html).toContain('type: "openRequirement"');
     expect(html).toContain("requirementId: href.slice(1)");
+  });
+});
+
+describe("multi-document rendered view", () => {
+  it("keeps every requirement document in one rendered page", () => {
+    const first = `<!DOCTYPE html><html><head><title>One</title></head><body><h2>SYS-001</h2></body></html>`;
+    const second = `<!DOCTYPE html><html><head><title>Two</title></head><body><h2>SYS-002</h2></body></html>`;
+    const html = combineRequirementHtml([first, second]);
+    expect(html).toContain("<h2>SYS-001</h2>");
+    expect(html).toContain("<h2>SYS-002</h2>");
+    expect(html.match(/<html/g)?.length).toBe(1);
   });
 });
 

@@ -8,9 +8,9 @@ use shallgraph_core::{
     export_requirement_file_json_schema, format_requirement_to_yaml,
     generate_single_requirement_html_with_source_links, get_requirement_profile,
     is_requirement_filename, list_registered_profile_ids, parse_requirement_content,
-    parse_root_marker_yaml, requirement_id_from_filename, validate_requirements,
-    ArtifactLinkRenderOptions, ArtifactRef, GithubArtifactLinkContext, Link, ParameterValue,
-    RequirementWithSource, REQUIREMENT_FILE_EXTENSION, STANDARD_PROFILE_ID,
+    parse_requirement_documents, parse_root_marker_yaml, requirement_id_from_filename,
+    validate_requirements, ArtifactLinkRenderOptions, ArtifactRef, GithubArtifactLinkContext, Link,
+    ParameterValue, RequirementWithSource, REQUIREMENT_FILE_EXTENSION, STANDARD_PROFILE_ID,
 };
 use wasm_bindgen::prelude::*;
 
@@ -167,6 +167,10 @@ fn requirement_to_json(r: &RequirementWithSource) -> Value {
         "sourcePath".into(),
         Value::String(r.source_path.to_string_lossy().into_owned()),
     );
+    obj.insert("multiDocument".into(), Value::Bool(r.multi_document));
+    if let Some(line) = r.document_line {
+        obj.insert("documentLine".into(), json!(line));
+    }
     if let Some(cat) = &r.category_path {
         obj.insert(
             "categoryPath".into(),
@@ -255,6 +259,14 @@ fn requirement_from_json(value: &Value) -> Result<RequirementWithSource, String>
         source_path: Path::new(obj.get("sourcePath").and_then(Value::as_str).unwrap_or(""))
             .to_path_buf(),
         category_path,
+        multi_document: obj
+            .get("multiDocument")
+            .and_then(Value::as_bool)
+            .unwrap_or(false),
+        document_line: obj
+            .get("documentLine")
+            .and_then(Value::as_u64)
+            .map(|n| n as usize),
     })
 }
 
@@ -294,6 +306,28 @@ pub fn wasm_parse_requirement_content(yaml: &str, path: &str) -> String {
         Ok(req) => json!({ "requirement": requirement_to_json(&req) }).to_string(),
         Err(err) => error_json(&err.path, &err.message, err.line),
     }
+}
+
+#[wasm_bindgen(js_name = parseRequirementDocuments)]
+pub fn wasm_parse_requirement_documents(yaml: &str, path: &str) -> String {
+    let parsed = parse_requirement_documents(yaml, Path::new(path));
+    let requirements: Vec<Value> = parsed
+        .requirements
+        .iter()
+        .map(requirement_to_json)
+        .collect();
+    let errors: Vec<Value> = parsed
+        .errors
+        .iter()
+        .map(|err| {
+            json!({
+                "path": err.path,
+                "message": err.message,
+                "line": err.line,
+            })
+        })
+        .collect();
+    json!({ "requirements": requirements, "errors": errors }).to_string()
 }
 
 #[wasm_bindgen(js_name = validateRequirements)]

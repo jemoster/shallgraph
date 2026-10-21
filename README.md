@@ -47,11 +47,11 @@ Use `shallgraph --help` or `shallgraph <command> --help` for full options.
 
 ## Requirement File Basics
 
-Each requirement is one file ending in `.req.yml` or `.req.yaml`.
+Each requirement file ends in `.req.yml` or `.req.yaml`. A file holds one requirement, or several requirements separated by a line that contains only `---`. A `---` before the first requirement is allowed. A `---` after the last requirement is ignored.
 
 Required fields:
 
-- `id` - stable identifier, usually matching the filename (without suffix).
+- `id` - stable identifier. When the file holds one requirement, `id` matches the filename without the extension. When the file holds several requirements, the filename does not have to match any of those ids.
 - `title` - short requirement name.
 
 Required normative field:

@@ -60,12 +60,22 @@ pub fn load_requirements(
     let mut errors: Vec<ValidationError> = Vec::new();
 
     for file_path in requirement_paths {
-        match profile.parse_requirement_file(&file_path) {
-            Err(err) => errors.push(err),
-            Ok(mut req) => {
-                req.category_path = Some(category_path_for(&file_path, &requirement_dirs));
-                requirements.push(req);
+        // GRD-SYS-020: each YAML document in the file is its own requirement.
+        let raw = match std::fs::read_to_string(&file_path) {
+            Ok(s) => s,
+            Err(err) => {
+                errors.push(ValidationError::new(
+                    file_path.display().to_string(),
+                    err.to_string(),
+                ));
+                continue;
             }
+        };
+        let parsed = profile.parse_requirement_documents(&raw, &file_path);
+        errors.extend(parsed.errors);
+        for mut req in parsed.requirements {
+            req.category_path = Some(category_path_for(&file_path, &requirement_dirs));
+            requirements.push(req);
         }
     }
 
@@ -228,5 +238,94 @@ parameters:
             Some(&crate::types::ParameterValue::Bool(true))
         );
         assert!(result.require.contains("{{ :limit }}"));
+    }
+
+    #[shallgraph::verifies("GRD-SYS-020", "GRD-VALID-002", "GRD-VALID-003")]
+    #[test]
+    fn loads_multi_document_file_without_filename_match() {
+        let root = temp_project();
+        let reqs = root.join("requirements");
+        fs::create_dir_all(&reqs).unwrap();
+        fs::write(
+            root.join(ROOT_MARKER),
+            "requirement_dirs:\n  - requirements\n",
+        )
+        .unwrap();
+        fs::write(
+            reqs.join(format!("bundle{REQUIREMENT_FILE_EXTENSION}")),
+            "id: SYS-001\ntitle: One\nrequire: The system shall be first.\n---\nid: SYS-002\ntitle: Two\nrequire: The system shall be second.\n",
+        )
+        .unwrap();
+        fs::write(
+            reqs.join(format!("SYS-003{REQUIREMENT_FILE_EXTENSION}")),
+            "---\nid: SYS-003\ntitle: Three\nrequire: The system shall be third.\n",
+        )
+        .unwrap();
+        let result = load_requirements(&root, Some(&root)).unwrap();
+        assert!(result.errors.is_empty(), "{:?}", result.errors);
+        assert_eq!(result.requirements.len(), 3);
+        let bundled: Vec<_> = result
+            .requirements
+            .iter()
+            .filter(|r| r.id == "SYS-001" || r.id == "SYS-002")
+            .collect();
+        assert_eq!(bundled.len(), 2);
+        assert_eq!(bundled[0].id, "SYS-001");
+        assert_eq!(bundled[1].id, "SYS-002");
+        assert!(bundled.iter().all(|r| r.multi_document));
+        assert_eq!(bundled[0].source_path, bundled[1].source_path);
+        let single = result
+            .requirements
+            .iter()
+            .find(|r| r.id == "SYS-003")
+            .unwrap();
+        assert!(!single.multi_document);
+    }
+
+    #[shallgraph::verifies("GRD-VALID-002")]
+    #[test]
+    fn single_document_filename_mismatch_still_fails() {
+        let root = temp_project();
+        let reqs = root.join("requirements");
+        fs::create_dir_all(&reqs).unwrap();
+        fs::write(
+            root.join(ROOT_MARKER),
+            "requirement_dirs:\n  - requirements\n",
+        )
+        .unwrap();
+        fs::write(
+            reqs.join(format!("WRONG{REQUIREMENT_FILE_EXTENSION}")),
+            "---\nid: SYS-009\ntitle: Mismatch\nrequire: The system shall match its filename.\n",
+        )
+        .unwrap();
+        let result = load_requirements(&root, Some(&root)).unwrap();
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.message.contains("does not match filename")));
+    }
+
+    #[shallgraph::verifies("GRD-VALID-003", "GRD-SYS-020")]
+    #[test]
+    fn duplicate_id_inside_one_file_is_reported() {
+        let root = temp_project();
+        let reqs = root.join("requirements");
+        fs::create_dir_all(&reqs).unwrap();
+        fs::write(
+            root.join(ROOT_MARKER),
+            "requirement_dirs:\n  - requirements\n",
+        )
+        .unwrap();
+        let file = reqs.join(format!("bundle{REQUIREMENT_FILE_EXTENSION}"));
+        fs::write(
+            &file,
+            "id: SYS-001\ntitle: One\nrequire: The system shall be first.\n---\nid: SYS-001\ntitle: Again\nrequire: The system shall be first again.\n",
+        )
+        .unwrap();
+        let result = load_requirements(&root, Some(&root)).unwrap();
+        assert!(result
+            .errors
+            .iter()
+            .any(|e| e.message.contains("Duplicate requirement id") && e.line.is_some()));
     }
 }

@@ -39,7 +39,10 @@ pub use discovery::{
 pub use error::{DiscoverResult, Error};
 #[cfg(feature = "std-fs")]
 pub use format::{format_project_requirement_files, FormatProjectResult};
-pub use format::{format_requirement_to_yaml, normalize_requirement_file_text_for_compare};
+pub use format::{
+    format_requirement_documents_to_yaml, format_requirement_to_yaml,
+    normalize_requirement_file_text_for_compare,
+};
 pub use html::{
     generate_full_html, generate_full_html_with_artifact_links,
     generate_full_html_with_source_links, generate_single_requirement_html,
@@ -55,7 +58,10 @@ pub use markdown::{
 pub use parameters::{resolve_text, resolve_to_segments, ResolvedSegment, SegmentKind};
 #[cfg(feature = "std-fs")]
 pub use parse::parse_requirement_file;
-pub use parse::{parse_requirement_content, parse_requirement_data};
+pub use parse::{
+    parse_requirement_content, parse_requirement_data, parse_requirement_documents,
+    RequirementDocumentParse,
+};
 #[cfg(feature = "std-fs")]
 pub use profile::{get_active_profile_id, load_active_profile};
 pub use profile::{

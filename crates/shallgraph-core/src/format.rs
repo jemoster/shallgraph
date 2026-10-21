@@ -214,6 +214,21 @@ pub fn normalize_requirement_file_text_for_compare(text: &str) -> String {
     out
 }
 
+/// GRD-SYS-020: Canonical YAML for every requirement document, kept in one file.
+/// One requirement is serialized the same way as [`format_requirement_to_yaml`].
+/// Several requirements are separated by a `---` line.
+#[shallgraph::implements("GRD-SYS-020")]
+pub fn format_requirement_documents_to_yaml(requirements: &[Requirement]) -> String {
+    let mut out = String::new();
+    for (index, requirement) in requirements.iter().enumerate() {
+        if index > 0 {
+            out.push_str("---\n");
+        }
+        out.push_str(&format_requirement_to_yaml(requirement));
+    }
+    out
+}
+
 /// Serialize a validated requirement to canonical YAML. Omits empty optional sections.
 #[shallgraph::implements("GRD-SYS-011")]
 pub fn format_requirement_to_yaml(requirement: &Requirement) -> String {
@@ -326,7 +341,7 @@ pub fn format_project_requirement_files(project_dir: &Path) -> FormatProjectResu
     };
 
     let mut errors: Vec<ValidationError> = Vec::new();
-    let mut parsed: Vec<(PathBuf, String, RequirementWithSource)> = Vec::new();
+    let mut parsed: Vec<(PathBuf, String, Vec<RequirementWithSource>)> = Vec::new();
     for file_path in paths {
         let raw = match fs::read_to_string(&file_path) {
             Ok(s) => s,
@@ -338,10 +353,19 @@ pub fn format_project_requirement_files(project_dir: &Path) -> FormatProjectResu
                 continue;
             }
         };
-        match profile.parse_requirement_content(&raw, &file_path) {
-            Ok(requirement) => parsed.push((file_path, raw, requirement)),
-            Err(err) => errors.push(err),
+        let documents = profile.parse_requirement_documents(&raw, &file_path);
+        if !documents.errors.is_empty() {
+            errors.extend(documents.errors);
+            continue;
         }
+        if documents.requirements.is_empty() {
+            errors.push(ValidationError::new(
+                file_path.display().to_string(),
+                "Requirement file contains no requirement document",
+            ));
+            continue;
+        }
+        parsed.push((file_path, raw, documents.requirements));
     }
 
     if !errors.is_empty() {
@@ -355,8 +379,9 @@ pub fn format_project_requirement_files(project_dir: &Path) -> FormatProjectResu
 
     let mut written_paths = Vec::new();
     let mut skipped_paths = Vec::new();
-    for (file_path, raw, requirement) in parsed {
-        let yaml = format_requirement_to_yaml(&requirement.to_requirement());
+    for (file_path, raw, requirements) in parsed {
+        let docs: Vec<Requirement> = requirements.iter().map(|r| r.to_requirement()).collect();
+        let yaml = format_requirement_documents_to_yaml(&docs);
         let norm_raw = normalize_requirement_file_text_for_compare(&raw);
         let norm_yaml = normalize_requirement_file_text_for_compare(&yaml);
         if norm_raw == norm_yaml {
@@ -610,6 +635,33 @@ mod tests {
         assert!(!result.errors.is_empty());
         assert!(result.written_paths.is_empty());
         assert_eq!(fs::read_to_string(&good_path).unwrap(), before);
+        let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[shallgraph::verifies("GRD-SYS-020", "GRD-SYS-011")]
+    #[test]
+    fn project_format_keeps_multiple_documents_in_one_file() {
+        let raw = "title: Two\nid: SYS-002\nrequire: The backend shall support concurrent streaming.\n---\ntitle: One\nid: SYS-001\nrequire: The system shall encrypt all video streams.\n";
+        let (project_root, file_path) = temp_project(raw);
+        let first = format_project_requirement_files(&project_root);
+        assert!(first.success, "{:?}", first.errors);
+        assert_eq!(first.written_paths.len(), 1);
+        let after = fs::read_to_string(&file_path).unwrap();
+        assert!(after.contains("\n---\n"));
+        let parsed = crate::parse::parse_requirement_documents(&after, &file_path);
+        assert!(parsed.errors.is_empty(), "{:?}", parsed.errors);
+        assert_eq!(
+            parsed
+                .requirements
+                .iter()
+                .map(|r| r.id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["SYS-002", "SYS-001"]
+        );
+        let second = format_project_requirement_files(&project_root);
+        assert!(second.success, "{:?}", second.errors);
+        assert!(second.written_paths.is_empty());
+        assert_eq!(second.skipped_paths, vec![file_path]);
         let _ = fs::remove_dir_all(&project_root);
     }
 }

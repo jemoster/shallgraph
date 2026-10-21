@@ -26,6 +26,10 @@ export interface Requirement {
 export interface RequirementWithSource extends Requirement {
   sourcePath: string;
   categoryPath?: string[];
+  /** True when this requirement came from a file with more than one requirement document. */
+  multiDocument?: boolean;
+  /** 1-based line where this requirement document starts. */
+  documentLine?: number;
 }
 
 export interface ValidationError {

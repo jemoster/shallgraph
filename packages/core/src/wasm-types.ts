@@ -3,6 +3,7 @@ export interface WasmBindings {
   isRequirementFilename(basename: string): boolean;
   requirementIdFromFilename(basename: string): string | undefined;
   parseRequirementContent(yaml: string, path: string): string;
+  parseRequirementDocuments(yaml: string, path: string): string;
   validateRequirements(requirementsJson: string): string;
   formatRequirementToYaml(requirementJson: string): string;
   exportRequirementFileJsonSchema(composeJson?: string | null): string;
