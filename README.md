@@ -49,6 +49,8 @@ Use `shallgraph --help` or `shallgraph <command> --help` for full options.
 
 Each requirement file ends in `.req.yml` or `.req.yaml`. A file holds one requirement, or several requirements separated by a line that contains only `---`. A `---` before the first requirement is allowed. A `---` after the last requirement is ignored.
 
+`sample_projects/basic/system/streaming.req.yml` holds two requirements in one file. The filename is `streaming.req.yml`, which matches neither id.
+
 Required fields:
 
 - `id` - stable identifier. When the file holds one requirement, `id` matches the filename without the extension. When the file holds several requirements, the filename does not have to match any of those ids.
