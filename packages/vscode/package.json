@@ -96,12 +96,12 @@
         {
           "command": "shallgraph.requirement.showRendered",
           "group": "navigation@1",
-          "when": "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/ && activeCustomEditorId != 'shallgraph.requirementRendered'"
+          "when": "shallgraph.requirementSourceActive"
         },
         {
           "command": "shallgraph.requirement.showSource",
           "group": "navigation@1",
-          "when": "activeCustomEditorId == 'shallgraph.requirementRendered'"
+          "when": "shallgraph.requirementRenderedActive"
         }
       ],
       "explorer/context": [
@@ -110,6 +110,20 @@
           "group": "ShallGraph"
         }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "shallgraph.requirement.showRendered",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "shallgraph.requirementSourceActive"
+      },
+      {
+        "command": "shallgraph.requirement.showSource",
+        "key": "ctrl+k v",
+        "mac": "cmd+k v",
+        "when": "shallgraph.requirementRenderedActive"
+      }
+    ]
   }
 }

@@ -48,9 +48,9 @@ describe("GRD-VSC-003 same-tab rendered view contributions", () => {
     const editorTitle = pkg.contributes?.menus?.["editor/title"] ?? [];
     const entry = editorTitle.find((m) => m.command === "shallgraph.requirement.showRendered");
     expect(entry).toBeDefined();
-    expect(entry!.when).toBe(
-      "editorLangId == yaml && resourceFilename =~ /\\.req\\.(yaml|yml)$/ && activeCustomEditorId != 'shallgraph.requirementRendered'"
-    );
+    // Filename-based context key (not editorLangId / regex) so the action still
+    // contributes when the host hides title icons or language id is not yaml.
+    expect(entry!.when).toBe("shallgraph.requirementSourceActive");
   });
 
   it("contributes a show-source command that returns the same tab to YAML", () => {
@@ -63,7 +63,19 @@ describe("GRD-VSC-003 same-tab rendered view contributions", () => {
     const editorTitle = pkg.contributes?.menus?.["editor/title"] ?? [];
     const entry = editorTitle.find((m) => m.command === "shallgraph.requirement.showSource");
     expect(entry).toBeDefined();
-    expect(entry!.when).toBe("activeCustomEditorId == 'shallgraph.requirementRendered'");
+    expect(entry!.when).toBe("shallgraph.requirementRenderedActive");
+  });
+
+  it("contributes keybindings for the same-tab YAML ↔ rendered switch", () => {
+    const keybindings = (
+      pkg.contributes as { keybindings?: Array<{ command: string; when?: string; key?: string }> }
+    )?.keybindings ?? [];
+    const showRendered = keybindings.find((k) => k.command === "shallgraph.requirement.showRendered");
+    const showSource = keybindings.find((k) => k.command === "shallgraph.requirement.showSource");
+    expect(showRendered?.when).toBe("shallgraph.requirementSourceActive");
+    expect(showSource?.when).toBe("shallgraph.requirementRenderedActive");
+    expect(showRendered?.key).toBe("ctrl+k v");
+    expect(showSource?.key).toBe("ctrl+k v");
   });
 
   it("does not bundle a rich-text editor for the rendered view", () => {

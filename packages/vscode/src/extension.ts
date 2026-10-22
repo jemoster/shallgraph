@@ -1,8 +1,9 @@
 /**
  * VSCode extension for shallgraph: link resolution, same-tab rendered view (GRD-VSC-003) that stays
- * read-only (GRD-VSC-006), navigation, YAML schema for requirement files (GRD-VSC-004): registered at
- * runtime from core (GRD-SYS-009), refreshed when project root markers change, new requirement from
- * explorer (GRD-VSC-005), and hover titles for requirement id references (GRD-VSC-007).
+ * read-only (GRD-VSC-006) with context keys + status-bar toggle for hosts that hide title icons,
+ * navigation, YAML schema for requirement files (GRD-VSC-004): registered at runtime from core
+ * (GRD-SYS-009), refreshed when project root markers change, new requirement from explorer
+ * (GRD-VSC-005), and hover titles for requirement id references (GRD-VSC-007).
  */
 import * as vscode from "vscode";
 import * as path from "node:path";
@@ -20,6 +21,7 @@ import {
 } from "./rendered-view.js";
 import { registerRequirementYamlSchema } from "./requirement-yaml-schema.js";
 import { registerRequirementHoverProvider } from "./requirement-hover.js";
+import { registerRequirementViewToggle } from "./requirement-view-toggle.js";
 
 const SATISFIES_REGEX = /satisfies:\s*['"]?([^\s'"\n]+)['"]?/g;
 
@@ -52,7 +54,9 @@ export function activate(context: vscode.ExtensionContext): void {
   );
 
   context.subscriptions.push(registerRequirementYamlSchema(context));
-  context.subscriptions.push(RequirementRenderedEditorProvider.register(log));
+  // GRD-VSC-003: Context keys + status bar toggle (Cursor hides editor-title icons by default).
+  const viewToggle = registerRequirementViewToggle(context);
+  context.subscriptions.push(RequirementRenderedEditorProvider.register(log, viewToggle.refresh));
 
   /** GRD-SYS-007: requirement files use `.req.yml` or `.req.yaml`. */
   const requirementYamlSelector: vscode.DocumentSelector = [
@@ -119,7 +123,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // GRD-VSC-007: Hover shows resolved requirement title for ids under the pointer (satisfies lines and other references).
   const hoverProvider = registerRequirementHoverProvider(requirementYamlSelector, log);
 
-  // GRD-VSC-003: Editor title action switches this tab between YAML and the rendered view.
+  // GRD-VSC-003: Editor title / status bar / keybinding switches this tab between YAML and rendered.
   const showRenderedCommand = vscode.commands.registerCommand(SHOW_RENDERED_COMMAND, async () => {
     const editor = vscode.window.activeTextEditor;
     if (!editor || !isRequirementDocument(editor.document)) {
@@ -127,6 +131,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     await switchRequirementEditor(editor.document.uri, RENDERED_VIEW_TYPE);
+    viewToggle.refresh();
   });
 
   const showSourceCommand = vscode.commands.registerCommand(SHOW_SOURCE_COMMAND, async () => {
@@ -137,6 +142,7 @@ export function activate(context: vscode.ExtensionContext): void {
       return;
     }
     await switchRequirementEditor(input.uri, DEFAULT_TEXT_EDITOR);
+    viewToggle.refresh();
   });
 
   // GRD-VSC-005: Explorer context menu — create a new requirement with schema-based template.
