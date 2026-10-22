@@ -7,7 +7,7 @@
  */
 import * as vscode from "vscode";
 import * as path from "node:path";
-import { REQUIREMENT_FILE_EXTENSION } from "@shallgraph/core";
+import { REQUIREMENT_FILE_EXTENSION, isRequirementFilename } from "@shallgraph/core";
 import { isRequirementDocument } from "./requirement-document.js";
 import { resolveRequirementPath } from "./link-resolver.js";
 import { newRequirementYamlTemplate } from "./new-requirement-template.js";
@@ -19,9 +19,39 @@ import {
   SHOW_SOURCE_COMMAND,
   switchRequirementEditor,
 } from "./rendered-view.js";
+import { TOGGLE_VIEW_COMMAND } from "./requirement-view-kind.js";
 import { registerRequirementYamlSchema } from "./requirement-yaml-schema.js";
 import { registerRequirementHoverProvider } from "./requirement-hover.js";
 import { registerRequirementViewToggle } from "./requirement-view-toggle.js";
+
+/**
+ * GRD-VSC-003: Resolve the active requirement URI from the tab first.
+ * Status-bar clicks can clear `activeTextEditor` before the command runs.
+ */
+function activeRequirementSourceUri(): vscode.Uri | undefined {
+  const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+  const input = tab?.input;
+  if (input instanceof vscode.TabInputText) {
+    const basename = path.basename(input.uri.fsPath || input.uri.path);
+    if (isRequirementFilename(basename)) {
+      return input.uri;
+    }
+  }
+  const editor = vscode.window.activeTextEditor;
+  if (editor && isRequirementDocument(editor.document)) {
+    return editor.document.uri;
+  }
+  return undefined;
+}
+
+function activeRequirementRenderedUri(): vscode.Uri | undefined {
+  const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
+  const input = tab?.input;
+  if (input instanceof vscode.TabInputCustom && input.viewType === RENDERED_VIEW_TYPE) {
+    return input.uri;
+  }
+  return undefined;
+}
 
 const SATISFIES_REGEX = /satisfies:\s*['"]?([^\s'"\n]+)['"]?/g;
 
@@ -125,24 +155,40 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // GRD-VSC-003: Editor title / status bar / keybinding switches this tab between YAML and rendered.
   const showRenderedCommand = vscode.commands.registerCommand(SHOW_RENDERED_COMMAND, async () => {
-    const editor = vscode.window.activeTextEditor;
-    if (!editor || !isRequirementDocument(editor.document)) {
+    const uri = activeRequirementSourceUri();
+    if (!uri) {
       log("[ShallGraph] Show Rendered View applies only to `.req.yml` / `.req.yaml` requirement files.");
       return;
     }
-    await switchRequirementEditor(editor.document.uri, RENDERED_VIEW_TYPE);
+    await switchRequirementEditor(uri, RENDERED_VIEW_TYPE);
     viewToggle.refresh();
   });
 
   const showSourceCommand = vscode.commands.registerCommand(SHOW_SOURCE_COMMAND, async () => {
-    const tab = vscode.window.tabGroups.activeTabGroup.activeTab;
-    const input = tab?.input;
-    if (!(input instanceof vscode.TabInputCustom) || input.viewType !== RENDERED_VIEW_TYPE) {
+    const uri = activeRequirementRenderedUri();
+    if (!uri) {
       log("[ShallGraph] Show YAML Source applies when the rendered requirement view is active.");
       return;
     }
-    await switchRequirementEditor(input.uri, DEFAULT_TEXT_EDITOR);
+    await switchRequirementEditor(uri, DEFAULT_TEXT_EDITOR);
     viewToggle.refresh();
+  });
+
+  // GRD-VSC-003: Status bar uses a single toggle so clicks stay correct if editor focus blurs first.
+  const toggleViewCommand = vscode.commands.registerCommand(TOGGLE_VIEW_COMMAND, async () => {
+    const renderedUri = activeRequirementRenderedUri();
+    if (renderedUri) {
+      await switchRequirementEditor(renderedUri, DEFAULT_TEXT_EDITOR);
+      viewToggle.refresh();
+      return;
+    }
+    const sourceUri = activeRequirementSourceUri();
+    if (sourceUri) {
+      await switchRequirementEditor(sourceUri, RENDERED_VIEW_TYPE);
+      viewToggle.refresh();
+      return;
+    }
+    log("[ShallGraph] Toggle Rendered View applies only to `.req.yml` / `.req.yaml` requirement files.");
   });
 
   // GRD-VSC-005: Explorer context menu — create a new requirement with schema-based template.
@@ -207,6 +253,7 @@ export function activate(context: vscode.ExtensionContext): void {
     hoverProvider,
     showRenderedCommand,
     showSourceCommand,
+    toggleViewCommand,
     newRequirementCommand
   );
 }

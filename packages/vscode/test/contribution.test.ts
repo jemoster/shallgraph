@@ -78,6 +78,14 @@ describe("GRD-VSC-003 same-tab rendered view contributions", () => {
     expect(showSource?.key).toBe("ctrl+k v");
   });
 
+  it("contributes a toggle command for the status-bar control", () => {
+    const commands = pkg.contributes?.commands ?? [];
+    const toggle = commands.find((c) => c.command === "shallgraph.requirement.toggleView");
+    expect(toggle).toBeDefined();
+    expect(toggle!.title).toContain("Toggle");
+    expect(toggle!.category).toBe("ShallGraph");
+  });
+
   it("does not bundle a rich-text editor for the rendered view", () => {
     expect(pkg.dependencies?.["@toast-ui/editor"]).toBeUndefined();
     expect(pkg.scripts?.build ?? "").not.toContain("webview");

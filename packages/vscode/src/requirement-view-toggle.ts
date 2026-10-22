@@ -9,8 +9,7 @@ import { isRequirementDocument } from "./requirement-document.js";
 import {
   CONTEXT_REQUIREMENT_RENDERED_ACTIVE,
   CONTEXT_REQUIREMENT_SOURCE_ACTIVE,
-  SHOW_RENDERED_COMMAND,
-  SHOW_SOURCE_COMMAND,
+  TOGGLE_VIEW_COMMAND,
   classifyRequirementViewKind,
   type RequirementTabSnapshot,
   type RequirementViewKind,
@@ -70,17 +69,18 @@ function applyStatusBar(
   item: vscode.StatusBarItem,
   kind: RequirementViewKind | null
 ): void {
+  // Always use the toggle command so a status-bar click still works if focus
+  // blurs the editor (and refreshes context) before the click is delivered.
+  item.command = TOGGLE_VIEW_COMMAND;
   if (kind === "source") {
     item.text = "$(open-preview) ShallGraph";
     item.tooltip = "ShallGraph: Show Rendered View";
-    item.command = SHOW_RENDERED_COMMAND;
     item.show();
     return;
   }
   if (kind === "rendered") {
     item.text = "$(file-code) ShallGraph";
     item.tooltip = "ShallGraph: Show YAML Source";
-    item.command = SHOW_SOURCE_COMMAND;
     item.show();
     return;
   }

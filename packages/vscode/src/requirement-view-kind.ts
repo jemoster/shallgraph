@@ -9,6 +9,8 @@ export const RENDERED_VIEW_TYPE = "shallgraph.requirementRendered";
 
 export const SHOW_RENDERED_COMMAND = "shallgraph.requirement.showRendered";
 export const SHOW_SOURCE_COMMAND = "shallgraph.requirement.showSource";
+/** Status-bar entry point: toggles YAML ↔ rendered without depending on a mode-specific command id. */
+export const TOGGLE_VIEW_COMMAND = "shallgraph.requirement.toggleView";
 
 /** Context key: YAML text editor for a requirement file is active. */
 export const CONTEXT_REQUIREMENT_SOURCE_ACTIVE = "shallgraph.requirementSourceActive";

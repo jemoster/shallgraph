@@ -89,6 +89,11 @@
         "command": "shallgraph.requirement.new",
         "title": "ShallGraph: Add New Requirement",
         "category": "ShallGraph"
+      },
+      {
+        "command": "shallgraph.requirement.toggleView",
+        "title": "ShallGraph: Toggle Rendered View",
+        "category": "ShallGraph"
       }
     ],
     "menus": {
