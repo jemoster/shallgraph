@@ -1,6 +1,6 @@
 {
   "name": "shallgraph-vscode",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "description": "Follow links in requirement files",
   "main": "dist/extension.js",
   "scripts": {
@@ -39,7 +39,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@shallgraph/core": "0.10.0",
+    "@shallgraph/core": "0.11.0",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
@@ -62,8 +62,12 @@
         "viewType": "shallgraph.requirementRendered",
         "displayName": "ShallGraph Rendered Requirement",
         "selector": [
-          { "filenamePattern": "*.req.yml" },
-          { "filenamePattern": "*.req.yaml" }
+          {
+            "filenamePattern": "*.req.yml"
+          },
+          {
+            "filenamePattern": "*.req.yaml"
+          }
         ],
         "priority": "option"
       }
