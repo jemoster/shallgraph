@@ -62,7 +62,7 @@ Required normative field:
 
 Common optional fields:
 
-- `refinement` - supporting detail (Markdown supported in reports).
+- `refinement` - supporting detail. A string is Markdown prose. A list is an ordered outline of claims.
 - `attributes` - metadata such as status, owner, or rationale.
 - `links` - traceability links (for example `satisfies: OTHER-ID`).
 - `satisfied_by` - artifacts (file paths or URLs) that implement or satisfy the requirement, each with an optional description.
@@ -78,6 +78,29 @@ satisfied_by:
 verified_by:
   - artifact: test/feature.test.ts
 ```
+
+### Refinement
+
+A string and a list are equally valid.
+
+A string `refinement` is Markdown prose. Dashes and asterisks inside that string are text, and the report shows one block.
+
+A list `refinement` is an outline. The requirement keeps its `id`, `title`, and `require` lead-in. Each claim is a string, or a mapping with `text` and an optional nested `refinement`. Claims have no id and no title. Position assigns the citation: `(a)`, then `(1)`, then `(A)`, then `(i)`, then `(I)`, and then the series repeats. The first claim of `SYS-003` is cited as `SYS-003(a)`.
+
+```yaml
+id: SYS-003
+title: Recording retention
+require: The system shall retain each recording,
+refinement:
+  - for the life of the account that created it.
+  - text: until an operator deletes it.
+    refinement:
+      - The deletion shall be recorded in the audit log.
+      - A deleted recording shall be removed from search.
+  - in the encrypted store named by SYS-001.
+```
+
+`SYS-003(a)` continues the lead-in. `SYS-003(b)(1)` is "The deletion shall be recorded in the audit log." A fragment starts in lowercase and continues its parent. A complete sentence stands on its own. Reports number a list. A string is one Markdown block.
 
 Parameter placeholders in strings:
 

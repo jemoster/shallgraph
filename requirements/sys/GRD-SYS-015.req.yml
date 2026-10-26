@@ -3,7 +3,9 @@ title: Requirement fields require and refinement
 require: The requirement YAML schema shall define a required `require` field and an optional `refinement` field.
 refinement: |
   The `require` field shall hold a single normative statement (one shall, should, or may) for the requirement ID.
-  The `refinement` field shall hold supporting detail (Markdown in reports).
+  The `refinement` field shall hold supporting detail.
+  A string value is Markdown detail.
+  A list value is defined by GRD-SYS-021.
   The legacy `description` field shall not be accepted.
   Validation shall reject a `require` value that contains zero or more than one RFC2119 keyword.
 attributes:

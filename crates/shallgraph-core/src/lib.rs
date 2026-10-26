@@ -87,7 +87,7 @@ pub use tags::{
     compose_options_to_json, custom_tags_from_marker_yaml, validate_requirement_tags, CustomTagSet,
 };
 pub use types::{
-    ArtifactRef, CustomTagDef, Link, LoadResult, ParameterValue, ProjectInfo, Requirement,
-    RequirementSchemaComposeOptions, RequirementWithSource, SourceLink, SourceLinkKind,
-    ValidationError,
+    ArtifactRef, Claim, CustomTagDef, Link, LoadResult, ParameterValue, ProjectInfo, Refinement,
+    Requirement, RequirementSchemaComposeOptions, RequirementWithSource, SourceLink,
+    SourceLinkKind, ValidationError,
 };

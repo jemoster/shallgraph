@@ -119,6 +119,126 @@ impl SourceLink {
     }
 }
 
+/// GRD-SYS-021: Supporting detail, either prose or an ordered claim outline.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Refinement {
+    /// A Markdown string. An empty string is a missing refinement.
+    Prose(String),
+    /// Ordered claims, details, and assertions. An empty list is still a list.
+    Claims(Vec<Claim>),
+}
+
+/// One claim in a refinement outline. A string item has no nested refinement.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Claim {
+    pub text: String,
+    pub refinement: Refinement,
+}
+
+impl Default for Refinement {
+    fn default() -> Self {
+        Refinement::Prose(String::new())
+    }
+}
+
+impl From<&str> for Refinement {
+    fn from(value: &str) -> Self {
+        Refinement::Prose(value.to_string())
+    }
+}
+
+impl From<String> for Refinement {
+    fn from(value: String) -> Self {
+        Refinement::Prose(value)
+    }
+}
+
+impl PartialEq<&str> for Refinement {
+    fn eq(&self, other: &&str) -> bool {
+        matches!(self, Refinement::Prose(text) if text == other)
+    }
+}
+
+impl PartialEq<String> for Refinement {
+    fn eq(&self, other: &String) -> bool {
+        matches!(self, Refinement::Prose(text) if text == other)
+    }
+}
+
+impl Refinement {
+    /// True when this is empty prose, which documents omit.
+    pub fn is_empty_prose(&self) -> bool {
+        matches!(self, Refinement::Prose(text) if text.is_empty())
+    }
+
+    /// True when there is nothing to render.
+    pub fn is_render_blank(&self) -> bool {
+        match self {
+            Refinement::Prose(text) => text.is_empty(),
+            Refinement::Claims(claims) => claims.is_empty(),
+        }
+    }
+
+    /// GRD-SYS-021: Citation marker for a claim at `depth` (0-based) and `index` (0-based).
+    /// The series is `(a)`, `(1)`, `(A)`, `(i)`, `(I)`, then it repeats.
+    pub fn outline_marker(depth: usize, index: usize) -> String {
+        let n = index + 1;
+        let body = match depth % 5 {
+            0 => to_alpha(n, false),
+            1 => n.to_string(),
+            2 => to_alpha(n, true),
+            3 => to_roman(n, false),
+            _ => to_roman(n, true),
+        };
+        format!("({body})")
+    }
+
+    /// Citation of a claim, such as `GRD-CLI-002(b)(1)`. `path` is 0-based indexes from the root.
+    pub fn citation(requirement_id: &str, path: &[usize]) -> String {
+        let mut out = requirement_id.to_string();
+        for (depth, index) in path.iter().enumerate() {
+            out.push_str(&Self::outline_marker(depth, *index));
+        }
+        out
+    }
+}
+
+fn to_alpha(n: usize, upper: bool) -> String {
+    let mut x = n;
+    let mut chars = Vec::new();
+    while x > 0 {
+        x -= 1;
+        chars.push((b'a' + (x % 26) as u8) as char);
+        x /= 26;
+    }
+    chars.reverse();
+    let text: String = chars.into_iter().collect();
+    if upper {
+        text.to_ascii_uppercase()
+    } else {
+        text
+    }
+}
+
+fn to_roman(mut n: usize, upper: bool) -> String {
+    const VALUES: [usize; 13] = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const LOWER: [&str; 13] = [
+        "m", "cm", "d", "cd", "c", "xc", "l", "xl", "x", "ix", "v", "iv", "i",
+    ];
+    let mut out = String::new();
+    for (value, lower) in VALUES.iter().zip(LOWER.iter()) {
+        while n >= *value {
+            out.push_str(lower);
+            n -= value;
+        }
+    }
+    if upper {
+        out.to_ascii_uppercase()
+    } else {
+        out
+    }
+}
+
 /// Requirement shape for YAML files. Runtime validation is enforced by the schema
 /// in `schema` (GRD-SYS-009); this struct is the Rust contract.
 #[derive(Debug, Clone, PartialEq)]
@@ -127,8 +247,8 @@ pub struct Requirement {
     pub title: String,
     /// Single normative Shall/Should/May statement for this requirement ID.
     pub require: String,
-    /// Supporting prose (Markdown in HTML reports).
-    pub refinement: String,
+    /// GRD-SYS-021: Prose (Markdown) or an ordered claim outline.
+    pub refinement: Refinement,
     pub attributes: Option<IndexMap<String, serde_json::Value>>,
     pub links: Option<Vec<Link>>,
     /// GRD-SYS-016: Artifacts that implement or satisfy this requirement.
@@ -146,7 +266,7 @@ pub struct RequirementWithSource {
     pub id: String,
     pub title: String,
     pub require: String,
-    pub refinement: String,
+    pub refinement: Refinement,
     pub attributes: Option<IndexMap<String, serde_json::Value>>,
     pub links: Option<Vec<Link>>,
     pub satisfied_by: Option<Vec<ArtifactRef>>,

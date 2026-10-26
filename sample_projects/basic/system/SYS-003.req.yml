@@ -1,0 +1,18 @@
+id: SYS-003
+title: Recording retention
+require: The system shall retain each recording,
+refinement:
+  - for the life of the account that created it.
+  - text: until an operator deletes it.
+    refinement:
+      - The deletion shall be recorded in the audit log.
+      - A deleted recording shall be removed from search.
+  - in the encrypted store named by SYS-001.
+attributes:
+  rationale: |
+    Example of a claim-list refinement. A string refinement is an equally valid form.
+  status: active
+tags:
+  priority: medium
+  component: platform
+  concern: [privacy]

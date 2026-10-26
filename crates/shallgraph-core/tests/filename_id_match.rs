@@ -12,7 +12,7 @@ fn req(id: &str, source_path: &str) -> RequirementWithSource {
             id: id.to_string(),
             title: "Test".into(),
             require: "The system shall test.".into(),
-            refinement: String::new(),
+            refinement: "".into(),
             attributes: None,
             links: None,
             satisfied_by: None,

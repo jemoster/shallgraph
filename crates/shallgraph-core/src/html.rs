@@ -8,10 +8,67 @@ use regex::Regex;
 
 use crate::artifact_links::{github_blob_url_for_path, ArtifactLinkRenderOptions};
 use crate::parameters::{resolve_to_segments, SegmentKind};
-use crate::types::{ArtifactRef, RequirementWithSource, SourceLink, SourceLinkKind};
+use crate::types::{ArtifactRef, Refinement, RequirementWithSource, SourceLink, SourceLinkKind};
 
 /// GRD-SYS-005: Placeholder character range for param spans (U+E000–E0FF); replaced after markdown.
 const PARAM_PLACEHOLDER_BASE: u32 = 0xe000;
+
+const REFINEMENT_OUTLINE_CSS: &str = r#"
+    .refinement-outline { list-style: none; margin: 0.35rem 0 0; padding-left: 0; }
+    .refinement-outline .refinement-outline { margin-top: 0.2rem; padding-left: 1.25rem; }
+    .refinement-outline > li { margin: 0.2rem 0; }
+    .claim-cite { font-weight: 600; margin-right: 0.35rem; }
+    .claim-text > p:only-child { display: inline; margin: 0; }
+    .claim-prose { margin: 0.25rem 0 0 1.6rem; }"#;
+
+/// GRD-HTML-009: Render a string refinement as Markdown, or a claim list as a numbered outline.
+#[shallgraph::implements("GRD-HTML-009")]
+fn render_refinement_html(
+    refinement: &Refinement,
+    requirement_id: &str,
+    by_id: &HashMap<String, &RequirementWithSource>,
+    path: &[usize],
+) -> String {
+    match refinement {
+        Refinement::Prose(text) if text.is_empty() => String::new(),
+        Refinement::Prose(text) => resolve_and_render_text(text, requirement_id, by_id, true),
+        Refinement::Claims(claims) if claims.is_empty() => String::new(),
+        Refinement::Claims(claims) => {
+            let depth = path.len();
+            let items: String = claims
+                .iter()
+                .enumerate()
+                .map(|(index, claim)| {
+                    let mut claim_path = path.to_vec();
+                    claim_path.push(index);
+                    let marker = Refinement::outline_marker(depth, index);
+                    let citation = Refinement::citation(requirement_id, &claim_path);
+                    let text = resolve_and_render_text(&claim.text, requirement_id, by_id, true);
+                    let nested = render_refinement_html(
+                        &claim.refinement,
+                        requirement_id,
+                        by_id,
+                        &claim_path,
+                    );
+                    let nested_html = match &claim.refinement {
+                        Refinement::Prose(prose) if !prose.is_empty() => {
+                            format!("<div class=\"claim-prose\">{nested}</div>")
+                        }
+                        _ => nested,
+                    };
+                    format!(
+                        "<li id=\"{}\"><span class=\"claim-cite\">{}</span><div class=\"claim-text\">{text}</div>{nested_html}</li>",
+                        escape_html(&citation),
+                        escape_html(&marker),
+                        text = text,
+                        nested_html = nested_html,
+                    )
+                })
+                .collect();
+            format!("<ol class=\"refinement-outline\">{items}</ol>")
+        }
+    }
+}
 
 fn escape_html(s: &str) -> String {
     s.replace('&', "&amp;")
@@ -576,11 +633,7 @@ fn requirement_detail_html(
 
     let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false);
     let require_html = resolve_and_render_text(&r.require, &r.id, by_id, false);
-    let refinement_html = if r.refinement.is_empty() {
-        String::new()
-    } else {
-        resolve_and_render_text(&r.refinement, &r.id, by_id, true)
-    };
+    let refinement_html = render_refinement_html(&r.refinement, &r.id, by_id, &[]);
 
     let refinement_block = if refinement_html.is_empty() {
         String::new()
@@ -858,6 +911,7 @@ pub fn generate_single_requirement_html_with_source_links(
     .require, .refinement p, .rationale p {{ margin: 0.4em 0; }}
     .refinement p:first-child, .rationale p:first-child {{ margin-top: 0; }}
     .refinement p:last-child, .rationale p:last-child {{ margin-bottom: 0; }}
+    {REFINEMENT_OUTLINE_CSS}
     .rationale {{ margin-top: 0; }}
     .satisfies-list, .linked-from-list, .artifact-refs-list, .source-links-list {{ margin: 0.25rem 0 0 1.25rem; padding: 0; }}
     .source-link-item, .source-link-lines {{ color: #666; }}
@@ -874,6 +928,7 @@ pub fn generate_single_requirement_html_with_source_links(
 </body>
 </html>"#,
         id = escape_html(&requirement.id),
+        REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
     )
 }
 
@@ -935,6 +990,7 @@ pub fn generate_full_html_with_artifact_links(
     .require, .refinement p, .rationale p {{ margin: 0.4em 0; }}
     .refinement p:first-child, .rationale p:first-child {{ margin-top: 0; }}
     .refinement p:last-child, .rationale p:last-child {{ margin-bottom: 0; }}
+    {REFINEMENT_OUTLINE_CSS}
     .rationale {{ margin-top: 0; }}
     .satisfies-list, .linked-from-list, .artifact-refs-list, .source-links-list {{ margin: 0.25rem 0 0 1.25rem; padding: 0; }}
     .source-link-item, .source-link-lines {{ color: #666; }}
@@ -956,7 +1012,8 @@ pub fn generate_full_html_with_artifact_links(
 {details}
 </body>
 </html>"#,
-        count = requirements.len()
+        count = requirements.len(),
+        REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
     )
 }
 
@@ -965,8 +1022,8 @@ mod tests {
     use super::*;
     use crate::artifact_links::{ArtifactLinkRenderOptions, GithubArtifactLinkContext};
     use crate::types::{
-        ArtifactRef, Link, ParameterValue, Requirement, RequirementWithSource, SourceLink,
-        SourceLinkKind,
+        ArtifactRef, Claim, Link, ParameterValue, Refinement, Requirement, RequirementWithSource,
+        SourceLink, SourceLinkKind,
     };
     use indexmap::IndexMap;
     use std::collections::BTreeMap;
@@ -978,7 +1035,7 @@ mod tests {
                 id: id.to_string(),
                 title: title.to_string(),
                 require: "The system shall meet this requirement.".to_string(),
-                refinement: String::new(),
+                refinement: "".into(),
                 attributes: None,
                 links: None,
                 satisfied_by: None,
@@ -1198,6 +1255,38 @@ mod tests {
         assert!(html.contains("&lt;script&gt;"));
         assert!(!html.contains("<b>tag</b>"));
         assert!(html.contains("&lt;b&gt;tag&lt;/b&gt;"));
+    }
+
+    #[shallgraph::verifies("GRD-HTML-009")]
+    #[test]
+    fn html_claim_outline_keeps_string_refinements_unnumbered() {
+        let mut prose = req("GRD-HTML-PROSE", "Prose");
+        prose.refinement = "* still text".into();
+        let html = generate_full_html(&[prose]);
+        assert!(html.contains("* still text") || html.contains("still text"));
+        assert!(!html.contains("class=\"claim-cite\""));
+
+        let mut listed = req("GRD-HTML-LIST", "List");
+        listed.refinement = Refinement::Claims(vec![
+            Claim {
+                text: "with a list view".into(),
+                refinement: Refinement::default(),
+            },
+            Claim {
+                text: "in the working directory".into(),
+                refinement: Refinement::Claims(vec![Claim {
+                    text: "The directory shall be created.".into(),
+                    refinement: Refinement::default(),
+                }]),
+            },
+        ]);
+        let html = generate_full_html(&[listed]);
+        assert!(html.contains("class=\"claim-cite\">(a)</span>"));
+        assert!(html.contains("class=\"claim-cite\">(b)</span>"));
+        assert!(html.contains("class=\"claim-cite\">(1)</span>"));
+        assert!(html.contains("id=\"GRD-HTML-LIST(b)(1)\""));
+        assert!(html.contains("with a list view"));
+        assert!(html.contains("The directory shall be created."));
     }
 
     #[test]
