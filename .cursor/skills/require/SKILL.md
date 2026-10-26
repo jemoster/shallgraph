@@ -32,22 +32,22 @@ Each requirement file uses:
 
 ## Refinement forms
 
-`require` stays one sentence with exactly one of shall, should, or may. Claim text does not follow that keyword rule.
+A string and a claim list are equally valid. Choose the form that matches the detail. `require` stays one sentence with exactly one of shall, should, or may. Claim text does not follow that keyword rule.
 
-### Older standard: string
+### String
 
-A string is Markdown prose. This is the form already used throughout `requirements/`. Keep it when the detail is a paragraph or an informal note.
+A string is Markdown prose. Use it for a paragraph or a note.
 
 ```yaml
 refinement: |
   * If no project root is found, the CLI shall exit with an error.
 ```
 
-Dashes, asterisks, and numbers inside the string are text. They are not sub-claims and they are not given citations.
+Dashes, asterisks, and numbers inside the string are text. They are prose, and they have no citations.
 
 ### Claim list
 
-Use a YAML list when the detail is a legal-style outline of claims, details, or assertions. The requirement still has one `id` and one `title`. A claim has no id and no title.
+A YAML list is an outline of claims, details, or assertions. The requirement still has one `id` and one `title`. A claim has no id and no title.
 
 ```yaml
 refinement:
@@ -63,16 +63,16 @@ A list item is a string, or a mapping with `text` and an optional nested `refine
 
 Position assigns the citation. The series is `(a)`, then `(1)`, then `(A)`, then `(i)`, then `(I)`, and then it repeats. For requirement `SYS-003`, the claims above are `SYS-003(a)`, `SYS-003(b)`, `SYS-003(b)(1)`, `SYS-003(b)(2)`, and `SYS-003(c)`.
 
-## Upgrading from the string standard
+## Changing between the two forms
 
-Projects and files written before claim lists remain valid. Do not rewrite a string `refinement` into a list unless the user asks. Rewriting changes citations and review diffs, and a Markdown list inside a `|` block is not a claim list.
+Rewrite a refinement into the other form only when the user asks. A Markdown list inside a `|` block is prose. A YAML list is a cited outline. Changing one into the other changes citations and the review diff.
 
-When the user does ask to upgrade a refinement:
+When the user asks for that change:
 
-1. Leave `id`, `title`, and `require` in place. If `require` is only a lead-in, keep the lead-in there and move the continuations into the list.
-2. Turn each normative or explanatory point into one list item. Use a plain string when the claim has no children.
-3. Use `text` plus a nested `refinement` list only for sub-claims.
-4. Do not invent ids, titles, or `require` fields on claims.
-5. Do not add a shall, should, or may to a fragment just to satisfy the `require` keyword rule. That rule applies to `require` only.
+1. Leave `id`, `title`, and `require` in place. When `require` is a lead-in, keep the lead-in there.
+2. For a list, turn each point into one list item. Use a plain string when the claim has no children. Use `text` plus a nested `refinement` list for sub-claims.
+3. For a string, write the same points as Markdown prose.
+4. Leave claims without ids, titles, or their own `require` field.
+5. Leave a fragment without a shall, should, or may. That keyword rule applies to `require` only.
 
 When writing requirements YAML, do not include newlines to limit the line length. Assume instead that word-wrap will be used to maintain readability.

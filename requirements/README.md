@@ -18,5 +18,5 @@ Add new categories as needed (e.g. GRD-WEB-*) when you add formal requirements f
 - One YAML file per requirement.
 - File name should match the requirement id (e.g. `GRD-SYS-001.req.yml` or `GRD-SYS-001.req.yaml`).
 - Use the same schema as project requirements: `id`, `title`, `require`, `refinement`, `attributes`, `links`, `satisfied_by`, `verified_by`.
-- `refinement` may be a Markdown string or a list of claims. The repository README shows the claim-list example. Existing string refinements stay strings.
+- `refinement` may be a Markdown string or a list of claims. Both are equally valid. The repository README shows each form.
 - In `links`, use `satisfies: <id>` to reference other requirements (e.g. `satisfies: GRD-SYS-001`).

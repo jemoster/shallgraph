@@ -185,7 +185,7 @@ fn prefer_clip_block_chomp_for_markdown_keys(yaml: &str) -> String {
 }
 
 /// GRD-SYS-021: Serialize prose as a string and a claim list as a sequence.
-/// Empty prose is omitted. An empty list is kept so a list is not rewritten into prose.
+/// Empty prose is omitted. An empty list is written so each form round-trips.
 fn refinement_to_yaml(refinement: &Refinement) -> Option<Value> {
     match refinement {
         Refinement::Prose(text) if text.is_empty() => None,

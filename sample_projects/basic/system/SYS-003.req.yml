@@ -10,7 +10,7 @@ refinement:
   - in the encrypted store named by SYS-001.
 attributes:
   rationale: |
-    Shows a claim outline beside the older string refinements in this sample.
+    Example of a claim-list refinement. A string refinement is an equally valid form.
   status: active
 tags:
   priority: medium

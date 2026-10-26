@@ -2,7 +2,7 @@ id: GRD-SYS-021
 title: Refinement string or claim list
 require: The requirement schema shall accept `refinement` as either a string or a list of claims.
 refinement: |
-  A string refinement is the existing prose form. It shall be kept and rendered as Markdown. Markdown list markers inside that string are text.
+  A string refinement is Markdown prose. Markdown list markers inside that string are text.
 
   A list refinement is an ordered outline. Each item shall be either a string or a mapping. A string item is one claim, detail, or assertion. A mapping item shall contain `text` and may contain a nested `refinement`. The nested `refinement` shall accept the same string or list.
 
@@ -12,10 +12,10 @@ refinement: |
 
   The rule that `require` contain one RFC2119 keyword applies to `require` only. Claim text may be a fragment or a full sentence.
 
-  The formatter shall preserve either shape and shall not rewrite a string refinement into a list.
+  The formatter shall preserve the form the author wrote. It shall keep a string as a string and a list as a list.
 attributes:
   rationale: |
-    Existing refinements are prose. A list records legal sub-claims without giving each one a title or a requirement id.
+    A string holds prose. A list holds cited sub-claims. Each form stands on its own.
   status: active
 links:
 - satisfies: GRD-SYS-015
