@@ -1,0 +1,14 @@
+id: GRD-HTML-009
+title: Numbered refinement outline in HTML
+require: When `refinement` is a list, the HTML report shall render it as a nested outline using the citation series from GRD-SYS-021.
+refinement: |
+  Each claim's text shall be rendered as Markdown, including parameter substitution and requirement-id links.
+  A string `refinement` shall continue to be rendered as a single Markdown block.
+attributes:
+  rationale: |
+    Readers need a stable citation for each sub-claim in the HTML report.
+  status: active
+links:
+- satisfies: GRD-HTML-001
+- satisfies: GRD-HTML-004
+- satisfies: GRD-SYS-021

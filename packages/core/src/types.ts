@@ -10,11 +10,23 @@ export interface ArtifactRef {
   description?: string;
 }
 
+/** One claim, detail, or assertion in a refinement outline. */
+export interface Claim {
+  text: string;
+  refinement?: Refinement;
+}
+
+/**
+ * GRD-SYS-021: A string is Markdown prose. A list is an ordered claim outline.
+ * A list entry is either a claim string or a claim object.
+ */
+export type Refinement = string | Array<string | Claim>;
+
 export interface Requirement {
   id: string;
   title: string;
   require: string;
-  refinement: string;
+  refinement: Refinement;
   attributes?: Record<string, unknown>;
   links?: Link[];
   satisfied_by?: ArtifactRef[];

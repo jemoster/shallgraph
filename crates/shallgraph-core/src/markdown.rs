@@ -7,7 +7,7 @@ use regex::Regex;
 
 use crate::artifact_links::{github_blob_url_for_path, ArtifactLinkRenderOptions};
 use crate::parameters::{resolve_to_segments, SegmentKind};
-use crate::types::{ArtifactRef, RequirementWithSource, SourceLink, SourceLinkKind};
+use crate::types::{ArtifactRef, Refinement, RequirementWithSource, SourceLink, SourceLinkKind};
 
 /// GRD-SYS-005: Placeholder character range for param spans (U+E000–E0FF); replaced after linking.
 const PARAM_PLACEHOLDER_BASE: u32 = 0xe000;
@@ -393,6 +393,81 @@ fn labeled_block(label: &str, body: &str) -> String {
     format!("**{label}**\n\n{body}")
 }
 
+/// GRD-MD-009: Render a string refinement as Markdown, or a claim list as a numbered outline.
+#[shallgraph::implements("GRD-MD-009")]
+fn render_refinement_markdown(
+    refinement: &Refinement,
+    requirement_id: &str,
+    by_id: &HashMap<String, &RequirementWithSource>,
+    path: &[usize],
+    indent: &str,
+) -> String {
+    match refinement {
+        Refinement::Prose(text) if text.is_empty() => String::new(),
+        Refinement::Prose(text) => {
+            let rendered = resolve_and_render_text(text, requirement_id, by_id, true);
+            if indent.is_empty() {
+                rendered
+            } else {
+                indent_lines(&rendered, indent)
+            }
+        }
+        Refinement::Claims(claims) if claims.is_empty() => String::new(),
+        Refinement::Claims(claims) => {
+            let depth = path.len();
+            let mut lines = Vec::new();
+            for (index, claim) in claims.iter().enumerate() {
+                let mut claim_path = path.to_vec();
+                claim_path.push(index);
+                let marker = Refinement::outline_marker(depth, index);
+                let text = resolve_and_render_text(&claim.text, requirement_id, by_id, true);
+                lines.push(format_claim_item(indent, &marker, &text));
+                let nested = render_refinement_markdown(
+                    &claim.refinement,
+                    requirement_id,
+                    by_id,
+                    &claim_path,
+                    &format!("{indent}  "),
+                );
+                if !nested.is_empty() {
+                    lines.push(nested);
+                }
+            }
+            lines.join("\n")
+        }
+    }
+}
+
+fn format_claim_item(indent: &str, marker: &str, body: &str) -> String {
+    let body = body.trim();
+    let mut line_iter = body.lines();
+    let first = line_iter.next().unwrap_or("");
+    let mut out = format!("{indent}- {marker} {first}");
+    let continuation = format!("{indent}  ");
+    for line in line_iter {
+        out.push('\n');
+        if !line.is_empty() {
+            out.push_str(&continuation);
+        }
+        out.push_str(line);
+    }
+    out
+}
+
+fn indent_lines(text: &str, indent: &str) -> String {
+    text.trim()
+        .lines()
+        .map(|line| {
+            if line.is_empty() {
+                String::new()
+            } else {
+                format!("{indent}{line}")
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 fn requirement_detail_markdown(
     r: &RequirementWithSource,
     linked_from_ids: Option<&[String]>,
@@ -541,11 +616,7 @@ fn requirement_detail_markdown(
 
     let title_md = resolve_and_render_text(&r.title, &r.id, by_id, false);
     let require_md = resolve_and_render_text(&r.require, &r.id, by_id, false);
-    let refinement_md = if r.refinement.is_empty() {
-        String::new()
-    } else {
-        resolve_and_render_text(&r.refinement, &r.id, by_id, true)
-    };
+    let refinement_md = render_refinement_markdown(&r.refinement, &r.id, by_id, &[], "");
     let refinement_block = if refinement_md.is_empty() {
         String::new()
     } else {
@@ -644,7 +715,7 @@ mod tests {
                 id: id.to_string(),
                 title: title.to_string(),
                 require: "The system shall meet this requirement.".to_string(),
-                refinement: String::new(),
+                refinement: "".into(),
                 attributes: None,
                 links: None,
                 satisfied_by: None,
@@ -808,6 +879,35 @@ mod tests {
         )]));
         let md = generate_full_markdown(&[r]);
         assert!(md.contains("Reason with `code` and **emphasis**."));
+    }
+
+    #[shallgraph::verifies("GRD-MD-009")]
+    #[test]
+    fn markdown_claim_outline_keeps_string_refinements_unnumbered() {
+        let mut prose = req("GRD-MD-PROSE", "Prose");
+        prose.refinement = "* still text".into();
+        let md = generate_full_markdown(&[prose]);
+        assert!(md.contains("* still text"));
+        assert!(!md.contains("(a)"));
+
+        let mut listed = req("GRD-MD-LIST", "List");
+        listed.refinement = Refinement::Claims(vec![
+            crate::types::Claim {
+                text: "with a list view".into(),
+                refinement: Refinement::default(),
+            },
+            crate::types::Claim {
+                text: "in the working directory".into(),
+                refinement: Refinement::Claims(vec![crate::types::Claim {
+                    text: "The directory shall be created.".into(),
+                    refinement: Refinement::default(),
+                }]),
+            },
+        ]);
+        let md = generate_full_markdown(&[listed]);
+        assert!(md.contains("- (a) with a list view"));
+        assert!(md.contains("- (b) in the working directory"));
+        assert!(md.contains("- (1) The directory shall be created."));
     }
 
     #[shallgraph::verifies("GRD-MD-006")]

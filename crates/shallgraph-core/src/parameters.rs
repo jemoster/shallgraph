@@ -191,7 +191,7 @@ mod tests {
                 id: id.to_string(),
                 title: "T".to_string(),
                 require: "The system shall test.".to_string(),
-                refinement: String::new(),
+                refinement: "".into(),
                 attributes: None,
                 links: None,
                 satisfied_by: None,

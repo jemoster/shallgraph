@@ -7,7 +7,7 @@ use std::collections::BTreeSet;
 use indexmap::IndexMap;
 use serde_yaml::Value;
 
-use crate::types::{ArtifactRef, Link, ParameterValue, Requirement};
+use crate::types::{ArtifactRef, Claim, Link, ParameterValue, Refinement, Requirement};
 
 const ALLOWED_KEYS: &[&str] = &[
     "id",
@@ -52,11 +52,84 @@ fn required_string(obj: &serde_yaml::Mapping, field: &str) -> Result<String, Str
     }
 }
 
-fn optional_refinement(obj: &serde_yaml::Mapping) -> String {
+/// GRD-SYS-021: A refinement is a string, or a list of claims.
+#[shallgraph::implements("GRD-SYS-021")]
+fn optional_refinement(obj: &serde_yaml::Mapping) -> Result<Refinement, String> {
     match obj.get(mapping_key("refinement")) {
-        None | Some(Value::Null) => String::new(),
-        Some(v) => yaml_scalar_to_string(v).unwrap_or_default(),
+        None | Some(Value::Null) => Ok(Refinement::default()),
+        Some(value) => parse_refinement_value(value).map_err(|err| prefix_refinement_error(&err)),
     }
+}
+
+fn prefix_refinement_error(err: &str) -> String {
+    if err.starts_with('[') || err.starts_with("refinement") {
+        format!("refinement{err}")
+    } else {
+        format!("refinement: {err}")
+    }
+}
+
+fn parse_refinement_value(value: &Value) -> Result<Refinement, String> {
+    match value {
+        Value::Null => Ok(Refinement::default()),
+        Value::Sequence(items) => Ok(Refinement::Claims(parse_claims(items)?)),
+        other => match yaml_scalar_to_string(other) {
+            Some(text) => Ok(Refinement::Prose(text)),
+            None => Err("expected a string or a list of claims".to_string()),
+        },
+    }
+}
+
+fn parse_claims(items: &[Value]) -> Result<Vec<Claim>, String> {
+    let mut claims = Vec::with_capacity(items.len());
+    for (index, item) in items.iter().enumerate() {
+        claims.push(parse_claim(item).map_err(|err| format!("[{index}]: {err}"))?);
+    }
+    Ok(claims)
+}
+
+fn parse_claim(value: &Value) -> Result<Claim, String> {
+    match value {
+        Value::Mapping(map) => parse_claim_mapping(map),
+        Value::Sequence(_) | Value::Null | Value::Tagged(_) => {
+            Err("expected a string or a mapping with text".to_string())
+        }
+        scalar => {
+            let text = yaml_scalar_to_string(scalar).unwrap_or_default();
+            if text.is_empty() {
+                return Err("claim text is empty".to_string());
+            }
+            Ok(Claim {
+                text,
+                refinement: Refinement::default(),
+            })
+        }
+    }
+}
+
+fn parse_claim_mapping(map: &serde_yaml::Mapping) -> Result<Claim, String> {
+    for key in map.keys() {
+        match key {
+            Value::String(name) if name == "text" || name == "refinement" => {}
+            Value::String(name) => return Err(format!("unknown key: {name}")),
+            _ => return Err("unknown key".to_string()),
+        }
+    }
+    let text = match map.get(mapping_key("text")) {
+        None => return Err("missing text".to_string()),
+        Some(value) => match yaml_scalar_to_string(value) {
+            Some(text) if !text.is_empty() => text,
+            Some(_) => return Err("claim text is empty".to_string()),
+            None => return Err("text must be a string".to_string()),
+        },
+    };
+    let refinement = match map.get(mapping_key("refinement")) {
+        None | Some(Value::Null) => Refinement::default(),
+        Some(value) => {
+            parse_refinement_value(value).map_err(|err| prefix_refinement_error(&err))?
+        }
+    };
+    Ok(Claim { text, refinement })
 }
 
 fn parse_artifact_ref(item: &Value) -> Result<ArtifactRef, String> {
@@ -206,7 +279,7 @@ pub fn parse_requirement_value(data: &Value) -> Result<Requirement, String> {
     let id = required_string(obj, "id")?;
     let title = required_string(obj, "title")?;
     let require = required_string(obj, "require")?;
-    let refinement = optional_refinement(obj);
+    let refinement = optional_refinement(obj)?;
 
     let mut req = Requirement {
         id,
@@ -271,6 +344,31 @@ pub fn export_requirement_file_json_schema(
         "type": "object",
         "additionalProperties": false,
         "required": ["id", "title", "require"],
+        "$defs": {
+            "claim": {
+                "anyOf": [
+                    { "type": ["string", "number", "boolean"] },
+                    {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["text"],
+                        "properties": {
+                            "text": {
+                                "type": ["string", "number", "boolean"],
+                                "description": "Claim, detail, or assertion. A fragment continues the parent. A full sentence stands alone."
+                            },
+                            "refinement": {
+                                "description": "Nested prose paragraph, or a further claim list.",
+                                "anyOf": [
+                                    { "type": ["string", "number", "boolean", "null"] },
+                                    { "type": "array", "items": { "$ref": "#/$defs/claim" } }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            }
+        },
         "properties": {
             "id": {
                 "type": ["string", "number", "boolean"],
@@ -285,7 +383,11 @@ pub fn export_requirement_file_json_schema(
                 "description": "Single normative statement for this requirement (one Shall, Should, or May)."
             },
             "refinement": {
-                "description": "Supporting detail for the requirement. Supports Markdown in HTML report output."
+                "description": "Supporting detail. A string is Markdown prose. A list is an ordered outline of claims. Each claim is a string, or a mapping with text and an optional nested refinement. Depth assigns the citation series (a), (1), (A), (i), (I).",
+                "anyOf": [
+                    { "type": ["string", "number", "boolean", "null"] },
+                    { "type": "array", "items": { "$ref": "#/$defs/claim" } }
+                ]
             },
             "attributes": {
                 "type": "object",
@@ -352,6 +454,77 @@ mod tests {
         assert_eq!(r.refinement, "");
     }
 
+    #[shallgraph::verifies("GRD-SYS-021")]
+    #[test]
+    fn parses_string_refinement_and_claim_list() {
+        let prose = parse_ok(
+            "id: GRD-X-010\ntitle: T\nrequire: The system shall keep prose.\nrefinement: |\n  * still text\n",
+        );
+        assert_eq!(prose.refinement, "* still text");
+
+        let listed = parse_ok(
+            r#"
+id: GRD-X-011
+title: T
+require: The record shall meet every clause,
+refinement:
+  - must be complete
+  - text: until an operator deletes it.
+    refinement:
+      - The deletion shall be recorded.
+      - in the audit log
+"#,
+        );
+        match listed.refinement {
+            Refinement::Claims(claims) => {
+                assert_eq!(claims.len(), 2);
+                assert_eq!(claims[0].text, "must be complete");
+                assert!(claims[0].refinement.is_empty_prose());
+                assert_eq!(claims[1].text, "until an operator deletes it.");
+                match &claims[1].refinement {
+                    Refinement::Claims(nested) => assert_eq!(nested.len(), 2),
+                    other => panic!("expected nested claims, got {other:?}"),
+                }
+            }
+            other => panic!("expected claims, got {other:?}"),
+        }
+        assert_eq!(Refinement::outline_marker(0, 0), "(a)");
+        assert_eq!(Refinement::outline_marker(0, 1), "(b)");
+        assert_eq!(Refinement::outline_marker(1, 0), "(1)");
+        assert_eq!(Refinement::outline_marker(2, 0), "(A)");
+        assert_eq!(Refinement::outline_marker(3, 3), "(iv)");
+        assert_eq!(Refinement::outline_marker(4, 0), "(I)");
+        assert_eq!(Refinement::outline_marker(5, 0), "(a)");
+        assert_eq!(
+            Refinement::citation("GRD-CLI-002", &[1, 0]),
+            "GRD-CLI-002(b)(1)"
+        );
+    }
+
+    #[shallgraph::verifies("GRD-SYS-021")]
+    #[test]
+    fn rejects_a_claim_without_text() {
+        let data: Value = serde_yaml::from_str(
+            "id: GRD-X-012\ntitle: T\nrequire: The system shall fail.\nrefinement:\n  - title: no text\n",
+        )
+        .unwrap();
+        let err = parse_requirement_value(&data).unwrap_err();
+        assert!(err.contains("refinement[0]"), "{err}");
+        assert!(
+            err.contains("missing text") || err.contains("unknown key"),
+            "{err}"
+        );
+    }
+
+    #[shallgraph::verifies("GRD-SYS-021")]
+    #[test]
+    fn keeps_an_empty_claim_list() {
+        let listed = parse_ok(
+            "id: GRD-X-013\ntitle: T\nrequire: The system shall keep an empty list.\nrefinement: []\n",
+        );
+        assert_eq!(listed.refinement, Refinement::Claims(Vec::new()));
+    }
+
     #[test]
     fn rejects_legacy_description_key() {
         let data: Value = serde_yaml::from_str(
@@ -380,6 +553,8 @@ mod tests {
         assert!(json["properties"]["parameters"].is_object());
         assert!(json["properties"]["satisfied_by"].is_object());
         assert!(json["properties"]["verified_by"].is_object());
+        assert!(json["properties"]["refinement"]["anyOf"].is_array());
+        assert!(json["$defs"]["claim"].is_object());
     }
 
     #[test]

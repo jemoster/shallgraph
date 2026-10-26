@@ -8,7 +8,7 @@ use indexmap::IndexMap;
 use regex::Regex;
 use serde_yaml::{Mapping, Value};
 
-use crate::types::{ArtifactRef, Link, ParameterValue, Requirement};
+use crate::types::{ArtifactRef, Claim, Link, ParameterValue, Refinement, Requirement};
 
 #[cfg(feature = "std-fs")]
 use crate::types::{RequirementWithSource, ValidationError};
@@ -178,10 +178,34 @@ fn links_to_yaml(links: &[Link]) -> Option<Value> {
     Some(Value::Sequence(links.iter().map(link_to_yaml).collect()))
 }
 
-/// Use block clip chomping (`|`) instead of strip (`|-`) for refinement and rationale.
+/// Use block clip chomping (`|`) instead of strip (`|-`) for refinement, rationale, and claim text.
 fn prefer_clip_block_chomp_for_markdown_keys(yaml: &str) -> String {
-    let re = Regex::new(r"(?m)^([ \t]*(?:refinement|rationale):[ \t]*)\|-(\r?\n)").unwrap();
+    let re = Regex::new(r"(?m)^([ \t]*(?:refinement|rationale|text):[ \t]*)\|-(\r?\n)").unwrap();
     re.replace_all(yaml, "$1|$2").into_owned()
+}
+
+/// GRD-SYS-021: Serialize prose as a string and a claim list as a sequence.
+/// Empty prose is omitted. An empty list is kept so a list is not rewritten into prose.
+fn refinement_to_yaml(refinement: &Refinement) -> Option<Value> {
+    match refinement {
+        Refinement::Prose(text) if text.is_empty() => None,
+        Refinement::Prose(text) => Some(Value::String(text.clone())),
+        Refinement::Claims(claims) => {
+            Some(Value::Sequence(claims.iter().map(claim_to_yaml).collect()))
+        }
+    }
+}
+
+fn claim_to_yaml(claim: &Claim) -> Value {
+    if claim.refinement.is_empty_prose() {
+        return Value::String(claim.text.clone());
+    }
+    let mut map = Mapping::new();
+    mapping_insert(&mut map, "text", Value::String(claim.text.clone()));
+    if let Some(nested) = refinement_to_yaml(&claim.refinement) {
+        mapping_insert(&mut map, "refinement", nested);
+    }
+    Value::Mapping(map)
 }
 
 fn stringify_yaml_value(value: &Value) -> String {
@@ -230,7 +254,7 @@ pub fn format_requirement_documents_to_yaml(requirements: &[Requirement]) -> Str
 }
 
 /// Serialize a validated requirement to canonical YAML. Omits empty optional sections.
-#[shallgraph::implements("GRD-SYS-011")]
+#[shallgraph::implements("GRD-SYS-011", "GRD-SYS-021")]
 pub fn format_requirement_to_yaml(requirement: &Requirement) -> String {
     let mut map = Mapping::new();
     mapping_insert(&mut map, "id", Value::String(requirement.id.clone()));
@@ -240,12 +264,8 @@ pub fn format_requirement_to_yaml(requirement: &Requirement) -> String {
         "require",
         Value::String(requirement.require.clone()),
     );
-    if !requirement.refinement.is_empty() {
-        mapping_insert(
-            &mut map,
-            "refinement",
-            Value::String(requirement.refinement.clone()),
-        );
+    if let Some(refinement) = refinement_to_yaml(&requirement.refinement) {
+        mapping_insert(&mut map, "refinement", refinement);
     }
     if let Some(attrs) = &requirement.attributes {
         if let Some(yaml) = attributes_to_yaml(attrs) {
@@ -429,7 +449,7 @@ mod tests {
             id: id.to_string(),
             title: title.to_string(),
             require: require.to_string(),
-            refinement: String::new(),
+            refinement: "".into(),
             attributes: None,
             links: None,
             satisfied_by: None,
@@ -504,6 +524,54 @@ mod tests {
         assert!(!once.contains("rationale: |-"));
     }
 
+    #[shallgraph::verifies("GRD-SYS-021")]
+    #[test]
+    fn preserves_prose_and_claim_list_shapes() {
+        let prose = req("GRD-T-Prose", "T", "The system shall keep the string.");
+        let mut prose = prose;
+        prose.refinement = "* still text".into();
+        let prose_yaml = format_requirement_to_yaml(&prose);
+        assert!(prose_yaml.contains("refinement:"), "{prose_yaml}");
+        assert!(!prose_yaml.contains("\n  - "), "{prose_yaml}");
+        let prose_again = parse_requirement_content(
+            &prose_yaml,
+            Path::new(&format!("/x{REQUIREMENT_FILE_EXTENSION}")),
+        )
+        .unwrap();
+        assert_eq!(prose_again.refinement, "* still text");
+
+        let mut listed = req("GRD-T-List", "T", "The record shall meet every clause,");
+        listed.refinement = Refinement::Claims(vec![
+            Claim {
+                text: "must be complete".into(),
+                refinement: Refinement::default(),
+            },
+            Claim {
+                text: "until an operator deletes it.".into(),
+                refinement: Refinement::Claims(vec![Claim {
+                    text: "The deletion shall be recorded.".into(),
+                    refinement: Refinement::default(),
+                }]),
+            },
+        ]);
+        let once = format_requirement_to_yaml(&listed);
+        assert!(once.contains("- must be complete"), "{once}");
+        assert!(once.contains("text:"), "{once}");
+        let parsed =
+            parse_requirement_content(&once, Path::new(&format!("/x{REQUIREMENT_FILE_EXTENSION}")))
+                .unwrap();
+        let twice = format_requirement_to_yaml(&parsed.to_requirement());
+        assert_eq!(twice, once);
+
+        let mut empty_list = req("GRD-T-Empty", "T", "The system shall keep an empty list.");
+        empty_list.refinement = Refinement::Claims(Vec::new());
+        let empty_yaml = format_requirement_to_yaml(&empty_list);
+        assert!(
+            empty_yaml.contains("refinement: []") || empty_yaml.contains("refinement: []\n"),
+            "{empty_yaml}"
+        );
+    }
+
     #[shallgraph::verifies("GRD-SYS-011")]
     #[test]
     fn orders_top_level_keys() {
@@ -550,7 +618,7 @@ mod tests {
             id: "GRD-T-003".into(),
             title: "T".into(),
             require: "The system shall do x.".into(),
-            refinement: String::new(),
+            refinement: "".into(),
             attributes: Some(IndexMap::from([
                 ("zebra".into(), serde_json::json!(1)),
                 ("apple".into(), serde_json::json!(2)),

@@ -9,8 +9,9 @@ use shallgraph_core::{
     generate_single_requirement_html_with_source_links, get_requirement_profile,
     is_requirement_filename, list_registered_profile_ids, parse_requirement_content,
     parse_requirement_documents, parse_root_marker_yaml, requirement_id_from_filename,
-    validate_requirements, ArtifactLinkRenderOptions, ArtifactRef, GithubArtifactLinkContext, Link,
-    ParameterValue, RequirementWithSource, REQUIREMENT_FILE_EXTENSION, STANDARD_PROFILE_ID,
+    validate_requirements, ArtifactLinkRenderOptions, ArtifactRef, Claim,
+    GithubArtifactLinkContext, Link, ParameterValue, Refinement, RequirementWithSource,
+    REQUIREMENT_FILE_EXTENSION, STANDARD_PROFILE_ID,
 };
 use wasm_bindgen::prelude::*;
 
@@ -116,12 +117,69 @@ where
     Ok(Some(map))
 }
 
+fn refinement_to_json(refinement: &Refinement) -> Value {
+    match refinement {
+        Refinement::Prose(text) => Value::String(text.clone()),
+        Refinement::Claims(claims) => Value::Array(claims.iter().map(claim_to_json).collect()),
+    }
+}
+
+fn claim_to_json(claim: &Claim) -> Value {
+    if claim.refinement.is_empty_prose() {
+        return Value::String(claim.text.clone());
+    }
+    let mut map = Map::new();
+    map.insert("text".into(), Value::String(claim.text.clone()));
+    map.insert("refinement".into(), refinement_to_json(&claim.refinement));
+    Value::Object(map)
+}
+
+fn refinement_from_json(value: Option<&Value>) -> Result<Refinement, String> {
+    match value {
+        None | Some(Value::Null) => Ok(Refinement::default()),
+        Some(Value::String(text)) => Ok(Refinement::Prose(text.clone())),
+        Some(Value::Array(items)) => {
+            let mut claims = Vec::with_capacity(items.len());
+            for (index, item) in items.iter().enumerate() {
+                claims.push(
+                    claim_from_json(item).map_err(|err| format!("refinement[{index}]: {err}"))?,
+                );
+            }
+            Ok(Refinement::Claims(claims))
+        }
+        Some(_) => Err("refinement: expected a string or a list of claims".into()),
+    }
+}
+
+fn claim_from_json(value: &Value) -> Result<Claim, String> {
+    match value {
+        Value::String(text) if !text.is_empty() => Ok(Claim {
+            text: text.clone(),
+            refinement: Refinement::default(),
+        }),
+        Value::String(_) => Err("claim text is empty".into()),
+        Value::Object(map) => {
+            let text = map
+                .get("text")
+                .and_then(Value::as_str)
+                .filter(|text| !text.is_empty())
+                .ok_or_else(|| "missing text".to_string())?;
+            let refinement = refinement_from_json(map.get("refinement"))?;
+            Ok(Claim {
+                text: text.to_string(),
+                refinement,
+            })
+        }
+        _ => Err("expected a string or a mapping with text".into()),
+    }
+}
+
 fn requirement_to_json(r: &RequirementWithSource) -> Value {
     let mut obj = Map::new();
     obj.insert("id".into(), Value::String(r.id.clone()));
     obj.insert("title".into(), Value::String(r.title.clone()));
     obj.insert("require".into(), Value::String(r.require.clone()));
-    obj.insert("refinement".into(), Value::String(r.refinement.clone()));
+    obj.insert("refinement".into(), refinement_to_json(&r.refinement));
     if let Some(attrs) = &r.attributes {
         obj.insert(
             "attributes".into(),
@@ -245,11 +303,7 @@ fn requirement_from_json(value: &Value) -> Result<RequirementWithSource, String>
         id: get_str("id")?,
         title: get_str("title")?,
         require: get_str("require")?,
-        refinement: obj
-            .get("refinement")
-            .and_then(Value::as_str)
-            .unwrap_or("")
-            .to_string(),
+        refinement: refinement_from_json(obj.get("refinement"))?,
         attributes: indexmap_from_object(obj.get("attributes"), |v| Ok(v.clone()))?,
         links,
         satisfied_by: artifacts_from_json(obj.get("satisfied_by"))?,
