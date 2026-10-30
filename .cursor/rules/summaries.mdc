@@ -1,0 +1,20 @@
+---
+description: Keep short summaries at the high-level function of a capability
+alwaysApply: true
+---
+
+# Short summaries
+
+A short summary names the high-level function of a command or capability. That includes CLI help text, the README command list, and any other one-line description.
+
+Leave each specific behavior, option, and sub-feature out of that line. Those details belong in requirements and in longer documentation.
+
+```markdown
+<!-- Bad: the line inventories one behavior of format -->
+- `shallgraph format` - rewrite requirement YAML into canonical format. Markdown tables in refinement, claim text, and rationale are column-aligned.
+
+<!-- Good: the line names the job -->
+- `shallgraph format` - rewrite requirement YAML into canonical format.
+```
+
+Adding a behavior to an existing capability does not add a clause to its short summary.

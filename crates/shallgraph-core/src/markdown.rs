@@ -652,6 +652,254 @@ fn requirement_detail_markdown(
     sections.join("\n\n")
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ColumnAlign {
+    Left { colon: bool },
+    Center,
+    Right,
+}
+
+struct OpenFence {
+    ch: char,
+    len: usize,
+}
+
+/// GRD-MD-010: Pad Markdown table cells so column bars line up.
+/// GRD-SYS-022 calls this for Markdown sections while formatting requirement YAML.
+#[shallgraph::implements("GRD-MD-010")]
+pub(crate) fn align_markdown_tables(markdown: &str) -> String {
+    let lines: Vec<&str> = markdown.split('\n').collect();
+    let mut out: Vec<String> = Vec::with_capacity(lines.len());
+    let mut index = 0;
+    let mut fence: Option<OpenFence> = None;
+    while index < lines.len() {
+        let line = lines[index];
+        if let Some(open) = &fence {
+            out.push(line.to_string());
+            if fence_closes(line, open) {
+                fence = None;
+            }
+            index += 1;
+            continue;
+        }
+        if let Some(open) = fence_opens(line) {
+            fence = Some(open);
+            out.push(line.to_string());
+            index += 1;
+            continue;
+        }
+        if let Some(span) = markdown_table_span(&lines[index..]) {
+            out.extend(align_table(&lines[index..index + span]));
+            index += span;
+            continue;
+        }
+        out.push(line.to_string());
+        index += 1;
+    }
+    out.join("\n")
+}
+
+fn fence_opens(line: &str) -> Option<OpenFence> {
+    let trimmed = line.trim_start();
+    let mut chars = trimmed.chars();
+    let ch = chars.next()?;
+    if ch != '`' && ch != '~' {
+        return None;
+    }
+    let mut len = 1usize;
+    for next in chars {
+        if next == ch {
+            len += 1;
+        } else {
+            break;
+        }
+    }
+    if len >= 3 {
+        Some(OpenFence { ch, len })
+    } else {
+        None
+    }
+}
+
+fn fence_closes(line: &str, open: &OpenFence) -> bool {
+    let trimmed = line.trim_start();
+    let mut len = 0usize;
+    for ch in trimmed.chars() {
+        if ch == open.ch {
+            len += 1;
+        } else {
+            break;
+        }
+    }
+    len >= open.len && trimmed.chars().skip(len).all(|ch| ch.is_whitespace())
+}
+
+fn markdown_table_span(lines: &[&str]) -> Option<usize> {
+    if lines.len() < 2 || !is_table_row(lines[0]) || !is_delimiter_row(lines[1]) {
+        return None;
+    }
+    let mut span = 2;
+    while span < lines.len() && is_table_row(lines[span]) {
+        span += 1;
+    }
+    Some(span)
+}
+
+fn is_table_row(line: &str) -> bool {
+    split_table_cells(line).is_some_and(|cells| !cells.is_empty())
+}
+
+fn is_delimiter_row(line: &str) -> bool {
+    split_table_cells(line)
+        .is_some_and(|cells| !cells.is_empty() && cells.iter().all(|cell| is_delimiter_cell(cell)))
+}
+
+fn is_delimiter_cell(cell: &str) -> bool {
+    let text = cell.trim();
+    let mut chars = text.chars().peekable();
+    if chars.peek() == Some(&':') {
+        chars.next();
+    }
+    let mut dashes = 0;
+    while chars.peek() == Some(&'-') {
+        dashes += 1;
+        chars.next();
+    }
+    if chars.peek() == Some(&':') {
+        chars.next();
+    }
+    dashes >= 1 && chars.peek().is_none() && text.chars().count() >= 3
+}
+
+fn column_align(cell: &str) -> ColumnAlign {
+    let text = cell.trim();
+    let left = text.starts_with(':');
+    let right = text.ends_with(':');
+    match (left, right) {
+        (true, true) => ColumnAlign::Center,
+        (false, true) => ColumnAlign::Right,
+        (true, false) => ColumnAlign::Left { colon: true },
+        (false, false) => ColumnAlign::Left { colon: false },
+    }
+}
+
+/// Split a Markdown table row on unescaped bars that are outside inline code.
+/// Returns `None` when the line has no column separator.
+fn split_table_cells(line: &str) -> Option<Vec<String>> {
+    let trimmed = line.trim();
+    let mut cells = Vec::new();
+    let mut current = String::new();
+    let mut chars = trimmed.chars().peekable();
+    let mut in_code = false;
+    let mut saw_separator = false;
+    while let Some(ch) = chars.next() {
+        if ch == '`' {
+            in_code = !in_code;
+            current.push(ch);
+            continue;
+        }
+        if !in_code && ch == '\\' {
+            if let Some(next) = chars.next() {
+                current.push('\\');
+                current.push(next);
+                continue;
+            }
+        }
+        if !in_code && ch == '|' {
+            saw_separator = true;
+            cells.push(std::mem::take(&mut current));
+            continue;
+        }
+        current.push(ch);
+    }
+    if !saw_separator {
+        return None;
+    }
+    cells.push(current);
+    let starts_with_pipe = trimmed.starts_with('|');
+    let ends_with_pipe = trimmed.ends_with('|') && !trimmed.ends_with("\\|");
+    if starts_with_pipe && cells.first().is_some_and(|cell| cell.is_empty()) {
+        cells.remove(0);
+    }
+    if ends_with_pipe && cells.last().is_some_and(|cell| cell.is_empty()) {
+        cells.pop();
+    }
+    if cells.is_empty() {
+        None
+    } else {
+        Some(cells)
+    }
+}
+
+fn align_table(lines: &[&str]) -> Vec<String> {
+    let indent_len = lines[0].len() - lines[0].trim_start().len();
+    let indent = &lines[0][..indent_len];
+    let rows: Vec<Vec<String>> = lines
+        .iter()
+        .map(|line| split_table_cells(line).unwrap_or_default())
+        .collect();
+    let column_count = rows.iter().map(Vec::len).max().unwrap_or(0);
+    let mut aligns = vec![ColumnAlign::Left { colon: false }; column_count];
+    if let Some(delimiter) = rows.get(1) {
+        for (index, cell) in delimiter.iter().enumerate() {
+            if index < column_count {
+                aligns[index] = column_align(cell);
+            }
+        }
+    }
+    let mut widths = vec![3usize; column_count];
+    for (row_index, row) in rows.iter().enumerate() {
+        if row_index == 1 {
+            continue;
+        }
+        for (index, cell) in row.iter().enumerate() {
+            let width = cell.trim().chars().count();
+            if index < widths.len() && width > widths[index] {
+                widths[index] = width;
+            }
+        }
+    }
+    rows.iter()
+        .enumerate()
+        .map(|(row_index, row)| {
+            let cells: Vec<String> = (0..column_count)
+                .map(|index| {
+                    let raw = row.get(index).map(String::as_str).unwrap_or("");
+                    if row_index == 1 {
+                        format_delimiter(widths[index], aligns[index])
+                    } else {
+                        pad_cell(raw.trim(), widths[index], aligns[index])
+                    }
+                })
+                .collect();
+            format!("{indent}| {} |", cells.join(" | "))
+        })
+        .collect()
+}
+
+fn format_delimiter(width: usize, align: ColumnAlign) -> String {
+    let width = width.max(3);
+    match align {
+        ColumnAlign::Left { colon: false } => "-".repeat(width),
+        ColumnAlign::Left { colon: true } => format!(":{}", "-".repeat(width - 1)),
+        ColumnAlign::Right => format!("{}:", "-".repeat(width - 1)),
+        ColumnAlign::Center => format!(":{}:", "-".repeat(width - 2)),
+    }
+}
+
+fn pad_cell(content: &str, width: usize, align: ColumnAlign) -> String {
+    let pad = width.saturating_sub(content.chars().count());
+    match align {
+        ColumnAlign::Center => {
+            let left = pad / 2;
+            let right = pad - left;
+            format!("{}{content}{}", " ".repeat(left), " ".repeat(right))
+        }
+        ColumnAlign::Right => format!("{}{content}", " ".repeat(pad)),
+        ColumnAlign::Left { .. } => format!("{content}{}", " ".repeat(pad)),
+    }
+}
+
 /// GRD-MD-001: Markdown report represents the full set of information in the requirements file.
 pub fn generate_full_markdown(requirements: &[RequirementWithSource]) -> String {
     generate_full_markdown_with_source_links(requirements, &[])
@@ -691,10 +939,10 @@ pub fn generate_full_markdown_with_artifact_links(
         .collect::<Vec<_>>()
         .join("\n\n");
 
-    format!(
+    align_markdown_tables(&format!(
         "# Requirements\n\nTotal: {count}\n\n## Index\n\n{index_md}\n\n## Details\n\n{details}\n",
         count = requirements.len()
-    )
+    ))
 }
 
 #[cfg(test)]
@@ -794,9 +1042,10 @@ mod tests {
         ]));
         let md = generate_full_markdown(&[r]);
         assert!(md.contains("**Parameters**"));
-        assert!(md.contains("| Name | Value |"));
-        assert!(md.contains("| alpha | one |"));
-        assert!(md.contains("| beta | two |"));
+        assert!(md.contains(
+            "| Name  | Value |\n| ----- | ----- |\n| alpha | one   |\n| beta  | two   |"
+        ));
+        assert_table_columns_aligned(&md);
     }
 
     #[shallgraph::verifies("GRD-MD-005")]
@@ -821,9 +1070,10 @@ mod tests {
             ),
         ]));
         let md = generate_full_markdown(&[r]);
-        let os = md.find("| native_binary_os |").expect("os row");
-        let arch = md.find("| native_binary_arch |").expect("arch row");
+        let os = md.find("| native_binary_os").expect("os row");
+        let arch = md.find("| native_binary_arch").expect("arch row");
         assert!(os < arch, "parameter rows should keep insertion order");
+        assert_table_columns_aligned(&md);
     }
 
     #[shallgraph::verifies("GRD-MD-002")]
@@ -1171,5 +1421,157 @@ mod tests {
         assert!(md.contains("`src/foo.ts`"));
         assert!(md.contains("/workspace/requirements/md/GRD-MD-008.req.yml"));
         assert!(!md.contains("](/workspace/requirements/md/GRD-MD-008.req.yml)"));
+    }
+
+    fn assert_table_columns_aligned(markdown: &str) {
+        let mut fence: Option<OpenFence> = None;
+        let lines: Vec<&str> = markdown.split('\n').collect();
+        let mut index = 0;
+        while index < lines.len() {
+            let line = lines[index];
+            if let Some(open) = &fence {
+                if fence_closes(line, open) {
+                    fence = None;
+                }
+                index += 1;
+                continue;
+            }
+            if let Some(open) = fence_opens(line) {
+                fence = Some(open);
+                index += 1;
+                continue;
+            }
+            if let Some(span) = markdown_table_span(&lines[index..]) {
+                let positions: Vec<Vec<usize>> = lines[index..index + span]
+                    .iter()
+                    .map(|row| unescaped_pipe_positions(row))
+                    .collect();
+                let expected = &positions[0];
+                for row in &positions[1..] {
+                    assert_eq!(row, expected, "table columns are not aligned:\n{markdown}");
+                }
+                index += span;
+                continue;
+            }
+            index += 1;
+        }
+    }
+
+    fn unescaped_pipe_positions(line: &str) -> Vec<usize> {
+        let mut positions = Vec::new();
+        let mut chars = line.char_indices().peekable();
+        let mut in_code = false;
+        while let Some((offset, ch)) = chars.next() {
+            if ch == '`' {
+                in_code = !in_code;
+                continue;
+            }
+            if !in_code && ch == '\\' {
+                chars.next();
+                continue;
+            }
+            if !in_code && ch == '|' {
+                positions.push(offset);
+            }
+        }
+        positions
+    }
+
+    #[shallgraph::verifies("GRD-MD-010")]
+    #[test]
+    fn aligns_parameter_table_when_values_contain_bars() {
+        let mut r = req("GRD-MD-010", "Bars");
+        r.parameters = Some(IndexMap::from([
+            (
+                "dir".into(),
+                ParameterValue::String("reqs.yaml | reqs.yml".into()),
+            ),
+            ("ext".into(), ParameterValue::String(".req.yml".into())),
+        ]));
+        let md = generate_full_markdown(&[r]);
+        let detail = detail_for(&md, "GRD-MD-010");
+        assert!(detail.contains(
+            "| Name | Value                 |\n| ---- | --------------------- |\n| dir  | reqs.yaml \\| reqs.yml |\n| ext  | .req.yml              |"
+        ));
+        assert_table_columns_aligned(detail);
+    }
+
+    #[shallgraph::verifies("GRD-MD-010")]
+    #[test]
+    fn aligns_prose_tables_and_keeps_alignment_markers() {
+        let src = "\
+See a | b in prose.\n\
+\n\
+| Left | Center | Right |\n\
+| :--- | :----: | ----: |\n\
+| a | b | c |\n\
+| aa | bb | cc |\n\
+\n\
+```\n\
+| a | bb |\n\
+| --- | --- |\n\
+| c | d |\n\
+```\n\
+\n\
+  | a | bb |\n\
+  | --- | --- |\n\
+  | ccc | d |\n";
+        let expected = "\
+See a | b in prose.\n\
+\n\
+| Left | Center | Right |\n\
+| :--- | :----: | ----: |\n\
+| a    |   b    |     c |\n\
+| aa   |   bb   |    cc |\n\
+\n\
+```\n\
+| a | bb |\n\
+| --- | --- |\n\
+| c | d |\n\
+```\n\
+\n\
+  | a   | bb  |\n\
+  | --- | --- |\n\
+  | ccc | d   |\n";
+        let once = align_markdown_tables(src);
+        assert_eq!(once, expected);
+        assert_eq!(align_markdown_tables(&once), once);
+
+        let mut r = req("GRD-MD-010", "Prose table");
+        r.refinement = "\
+| Key | Meaning |\n\
+| --- | --- |\n\
+| a | alpha |\n\
+| bb | beta |"
+            .into();
+        let md = generate_full_markdown(&[r]);
+        let detail = detail_for(&md, "GRD-MD-010");
+        assert!(detail.contains(
+            "| Key | Meaning |\n| --- | ------- |\n| a   | alpha   |\n| bb  | beta    |"
+        ));
+        assert_table_columns_aligned(detail);
+
+        let code = "\
+| code | note |\n\
+| --- | --- |\n\
+| `a|b` | stays one cell |\n";
+        assert_eq!(
+            align_markdown_tables(code),
+            "\
+| code  | note           |\n\
+| ----- | -------------- |\n\
+| `a|b` | stays one cell |\n"
+        );
+
+        let mut linked = req("GRD-MD-010", "Linked table");
+        linked.refinement = "\
+| Ref | Note |\n\
+| --- | --- |\n\
+| GRD-HTML-001 | see it |"
+            .into();
+        let md = generate_full_markdown(&[req("GRD-HTML-001", "Target"), linked]);
+        let detail = detail_for(&md, "GRD-MD-010");
+        assert!(detail.contains("[GRD-HTML-001](#GRD-HTML-001)"));
+        assert_table_columns_aligned(detail);
     }
 }

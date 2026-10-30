@@ -19,12 +19,12 @@ use std::process::ExitCode;
 Usage: shallgraph <command> [options]\n\n\
 Pass -v or --version to print the semantic version and exit.\n\n\
 Commands:\n  \
-  validate   Check requirement files for schema, duplicate IDs, and broken links\n  \
+  validate   Validate requirement files\n  \
   format     Rewrite requirement YAML files to canonical formatting\n  \
-  html       Generate an HTML report of requirements\n  \
-  markdown   Generate a Markdown report of all requirements\n  \
-  schema     Print the requirement schema for the current project (JSON Schema or YAML)\n  \
-  bootstrap  Initialize a directory with shallgraph.yaml and a requirements folder"
+  html       Generate an HTML report\n  \
+  markdown   Generate a Markdown report\n  \
+  schema     Print the requirement schema\n  \
+  bootstrap  Initialize a shallgraph project"
 )]
 struct Cli {
     /// Print the semantic version and exit
@@ -41,46 +41,46 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Check requirement files for schema, duplicate IDs, and broken links
+    /// Validate requirement files
     Validate,
     /// Rewrite requirement YAML files to canonical formatting
     Format,
-    /// Generate an HTML report of requirements
+    /// Generate an HTML report
     Html {
         /// Output directory (default: .)
         #[arg(short = 'o', long = "output", default_value = ".", value_name = "DIR")]
         output: PathBuf,
-        /// Write every requirement into one HTML file. This is the default.
+        /// Write the combined HTML report
         #[arg(long, conflicts_with = "pages")]
         combined: bool,
-        /// Write one HTML file per requirement. `all` writes the index and every requirement. A requirement id writes only that page.
+        /// Write one HTML file per requirement
         #[arg(long, value_name = "all|ID", conflicts_with = "combined")]
         pages: Option<String>,
-        /// Base URL for links between requirement pages. Requires --pages.
+        /// Base URL for links between pages
         #[arg(long, value_name = "URL", requires = "pages")]
         base_url: Option<String>,
     },
-    /// Generate a Markdown report of all requirements
+    /// Generate a Markdown report
     Markdown {
-        /// Output directory for index.md (default: .)
+        /// Output directory (default: .)
         #[arg(short = 'o', long = "output", default_value = ".", value_name = "DIR")]
         output: PathBuf,
     },
-    /// Print the requirement schema for the current project
+    /// Print the requirement schema
     Schema {
-        /// Output format: json-schema (default) or yaml
+        /// Output format
         #[arg(long, value_enum, default_value_t = SchemaFormatArg::JsonSchema)]
         format: SchemaFormatArg,
         /// Write to this file instead of stdout
         #[arg(short = 'o', long = "output", value_name = "FILE")]
         output: Option<PathBuf>,
     },
-    /// Initialize a directory with shallgraph.yaml and a requirements folder
+    /// Initialize a shallgraph project
     Bootstrap {
-        /// Overwrite existing shallgraph.yaml; do not fail if requirements folder exists
+        /// Overwrite existing project files
         #[arg(long)]
         force: bool,
-        /// Add .cursor rules for requirements (without prompting)
+        /// Add .cursor rules for requirements
         #[arg(long)]
         cursor_rules: bool,
     },
