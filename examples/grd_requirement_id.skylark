@@ -1,0 +1,28 @@
+# A requirement id starts with GRD, then one or more uppercase-letter tokens,
+# then a three-digit number. Tokens are joined by "-".
+# GRD-SOME-010 is valid. GRD-some_10 is not.
+
+def _upper_alpha(token):
+    if len(token) < 1:
+        return False
+    for ch in token.elems():
+        if ch < "A" or ch > "Z":
+            return False
+    return True
+
+def _three_digits(token):
+    if len(token) != 3:
+        return False
+    for ch in token.elems():
+        if ch < "0" or ch > "9":
+            return False
+    return True
+
+def validate_requirement_id(requirement_id):
+    parts = requirement_id.split("-")
+    if len(parts) < 3 or parts[0] != "GRD" or not _three_digits(parts[-1]):
+        return "requirement id must look like GRD-SOME-010"
+    for token in parts[1:-1]:
+        if not _upper_alpha(token):
+            return "requirement id tokens must be uppercase letters joined by -"
+    return None

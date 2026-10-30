@@ -27,6 +27,9 @@ thiserror = "1"
 walkdir = "2"
 regex = "1"
 indexmap = "=2.7.1"
+# 0.13 is the last release that builds on Rust 1.83. Cargo.lock also pins
+# allocative 0.3.4, idna_adapter 1.2.0, home 0.5.11, and unicode-segmentation 1.12.0.
+starlark = "=0.13.0"
 pulldown-cmark = { version = "=0.12.2", default-features = false, features = ["html"] }
 clap = { version = "=4.5.23", features = ["derive"] }
 anyhow = "1"

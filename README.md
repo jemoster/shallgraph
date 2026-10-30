@@ -186,6 +186,18 @@ Validation reports a bad tag definition against the project root marker and the 
 
 `sample_projects/basic` is a worked example: `priority` is required, `component` may be null, and `concern` is a list that may be empty or contain a null item.
 
+### `skylark` in `shallgraph.yaml`
+
+Optional. Names a Skylark file, relative to the project root, that checks requirement ids. Skylark is the Starlark language. Omit `skylark` when every id is acceptable.
+
+The file defines `validate_requirement_id(requirement_id)`. Validation calls it once per requirement. Return `None` or `True` to accept the id. Return `False` to reject it. Return a string to reject it and include that string in the error. A blank string rejects the id without an extra message.
+
+`examples/grd_requirement_id.skylark` accepts an id that starts with `GRD`, then one or more uppercase-letter tokens, then a three-digit number, joined by `-`. `GRD-SOME-010` passes. `GRD-some_10` does not. This repository's `shallgraph.yaml` points at that file.
+
+```yaml
+skylark: examples/grd_requirement_id.skylark
+```
+
 ## Developer Documentation
 
 See `dev.md` for workspace layout, building from source, packaging, the editor extension, and pre-commit setup.

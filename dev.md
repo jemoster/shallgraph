@@ -23,7 +23,7 @@ Workspace TypeScript packages:
 
 Rust crates:
 
-- `crates/shallgraph-core` - core engine (discovery, parse, validate, format, full and single-requirement HTML, full Markdown report, schema export, source-link collection). Single-requirement HTML and the Markdown report can optionally turn implementation and verification file paths into GitHub blob links when repository owner, name, commit, and project-root path are provided.
+- `crates/shallgraph-core` - core engine (discovery, parse, validate, format, full and single-requirement HTML, full Markdown report, schema export, source-link collection, optional Skylark checks on requirement ids). Single-requirement HTML and the Markdown report can optionally turn implementation and verification file paths into GitHub blob links when repository owner, name, commit, and project-root path are provided.
 - `crates/shallgraph-wasm` - wasm-bindgen JSON ABI over `shallgraph-core` for JavaScript hosts.
 - `crates/shallgraph-macros` - proc-macro attributes for tagging Rust items as source links.
 - `crates/shallgraph` - `shallgraph` binary with bootstrap, validate, format, html, markdown, and schema.

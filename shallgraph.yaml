@@ -1,3 +1,4 @@
 requirement_dirs:
   - requirements/
 profile: standard
+skylark: examples/grd_requirement_id.skylark
