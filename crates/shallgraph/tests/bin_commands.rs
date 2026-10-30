@@ -500,7 +500,9 @@ fn html_pages_all_writes_index_and_requirement_pages() {
     let page = fs::read_to_string(tmp.join("SYS-003.html")).unwrap();
     assert!(page.contains("href=\"index.html\""));
     assert!(page.contains("href=\"SYS-001.html\""));
-    assert!(page.contains("href=\"#SYS-003(a)\""));
+    assert!(page.contains("id=\"SYS-003(a)\""));
+    assert!(page.contains("<span class=\"claim-cite\">(a)</span>"));
+    assert!(!page.contains("href=\"#SYS-003(a)\""));
     assert!(page.contains("class=\"requirement-detail\""));
     let html_files = fs::read_dir(&tmp)
         .unwrap()

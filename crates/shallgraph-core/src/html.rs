@@ -17,8 +17,11 @@ const REFINEMENT_OUTLINE_CSS: &str = r#"
     .refinement-outline { list-style: none; margin: 0.35rem 0 0; padding-left: 0; }
     .refinement-outline .refinement-outline { margin-top: 0.2rem; padding-left: 1.25rem; }
     .refinement-outline > li { margin: 0.2rem 0; }
-    .claim-cite { font-weight: 600; margin-right: 0.35rem; }
-    .claim-text > p:only-child { display: inline; margin: 0; }
+    .claim-line { display: flex; align-items: baseline; gap: 0.35rem; }
+    .claim-cite { font-weight: 600; flex: none; }
+    .claim-text { min-width: 0; }
+    .claim-text > p:first-child { margin-top: 0; }
+    .claim-text > p:last-child { margin-bottom: 0; }
     .claim-prose { margin: 0.25rem 0 0 1.6rem; }"#;
 
 /// GRD-HTML-009: Render a string refinement as Markdown, or a claim list as a numbered outline.
@@ -55,15 +58,6 @@ fn render_refinement_html(
                         &claim_path,
                         links,
                     );
-                    let marker_html = if links.is_pages() {
-                        format!(
-                            "<a href=\"#{}\">{}</a>",
-                            escape_html(&citation),
-                            escape_html(&marker)
-                        )
-                    } else {
-                        escape_html(&marker)
-                    };
                     let nested_html = match &claim.refinement {
                         Refinement::Prose(prose) if !prose.is_empty() => {
                             format!("<div class=\"claim-prose\">{nested}</div>")
@@ -71,11 +65,11 @@ fn render_refinement_html(
                         _ => nested,
                     };
                     format!(
-                        "<li id=\"{}\"><span class=\"claim-cite\">{marker_html}</span><div class=\"claim-text\">{text}</div>{nested_html}</li>",
+                        "<li id=\"{}\"><div class=\"claim-line\"><span class=\"claim-cite\">{}</span><div class=\"claim-text\">{}</div></div>{}</li>",
                         escape_html(&citation),
-                        marker_html = marker_html,
-                        text = text,
-                        nested_html = nested_html,
+                        escape_html(&marker),
+                        text,
+                        nested_html,
                     )
                 })
                 .collect();
@@ -1521,9 +1515,12 @@ mod tests {
             },
         ]);
         let html = generate_full_html(&[listed]);
+        assert!(html.contains("class=\"claim-line\""));
+        assert!(html.contains(".claim-line { display: flex; align-items: baseline;"));
         assert!(html.contains("class=\"claim-cite\">(a)</span>"));
         assert!(html.contains("class=\"claim-cite\">(b)</span>"));
         assert!(html.contains("class=\"claim-cite\">(1)</span>"));
+        assert!(!html.contains("<span class=\"claim-cite\"><a"));
         assert!(html.contains("id=\"GRD-HTML-LIST(b)(1)\""));
         assert!(html.contains("with a list view"));
         assert!(html.contains("The directory shall be created."));
@@ -2013,6 +2010,8 @@ mod tests {
         assert!(html.contains("href=\"GRD-PAGE-002.html\""));
         assert!(html.contains("href=\"GRD-PAGE-003.html\""));
         assert!(html.contains("href=\"#GRD-PAGE-001(a)\""));
+        assert!(html.contains("class=\"claim-cite\">(a)</span>"));
+        assert!(!html.contains("<span class=\"claim-cite\"><a"));
         assert!(html.contains("href=\"https://example.com/evidence\""));
         assert!(!html.contains("href=\"GRD-PAGE-001.html\""));
         let satisfies = html.find("Satisfies").map(|start| &html[start..]).unwrap();
