@@ -1,5 +1,5 @@
 id: GRD-HTML-006
-title: Link requirement references in text
+title: Link requirement references in the HTML report
 require: When rendering requirement text fields in HTML, references to requirement IDs shall be rendered as hyperlinks to the referenced requirement definition within the report.
 refinement: |
   This applies to requirement prose content, including require, refinement, and rationale,

@@ -76,7 +76,7 @@ pub use requirement_files::{
 pub use rules::{
     default_global_rules, default_rules, filename_id_match, links_acyclic, parameters_valid,
     require_valid, run_global_rules, run_rules, satisfies_references_exist, unique_ids,
-    validate_requirements, NamedGlobalRule, NamedRule, ValidationRule,
+    unique_titles, validate_requirements, NamedGlobalRule, NamedRule, ValidationRule,
 };
 pub use schema::{export_requirement_file_json_schema, parse_requirement_value};
 #[cfg(feature = "std-fs")]

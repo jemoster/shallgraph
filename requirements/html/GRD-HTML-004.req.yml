@@ -1,5 +1,5 @@
 id: GRD-HTML-004
-title: Markdown in refinement and rationale
+title: Markdown refinement and rationale in the HTML report
 require: When rendering the HTML report, the refinement and rationale shall be rendered as Markdown.
 attributes:
   rationale: |
