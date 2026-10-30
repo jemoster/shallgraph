@@ -1,0 +1,20 @@
+id: GRD-CLI-012
+title: CLI per-requirement HTML pages
+require: The html command shall accept --combined and --pages to choose one HTML file for every requirement or one HTML file per requirement.
+refinement:
+- '`--combined` writes the single combined report defined by GRD-CLI-002.'
+- Omitting both `--combined` and `--pages` writes that same combined report.
+- '`--pages all` writes `index.html` and one HTML file for every loaded requirement into the output directory, using the pages and links defined by GRD-HTML-010.'
+- '`--pages` with a requirement id writes only that requirement''s HTML file. That page still uses the links defined by GRD-HTML-010, including links to pages this command did not write.'
+- The pages are written in the output directory defined by GRD-CLI-002.
+- '`--base-url` sets the optional base URL used by GRD-HTML-010. It is valid only with `--pages`.'
+- Passing `--base-url` without `--pages`, or passing `--combined` and `--pages` together, fails the command and writes no report.
+- An unknown requirement id passed to `--pages` fails the command and writes no HTML file.
+- The flag value `all` means every loaded requirement. It is matched case-sensitively and is not resolved as a requirement id.
+attributes:
+  rationale: |
+    Users publish requirements as separate HTML pages and sometimes regenerate one page. The base URL is the publish prefix so links resolve at that site. The combined report remains the default. Listing `--combined` explicitly lets a caller select that report by name if the default later becomes `--pages`.
+  status: active
+links:
+- satisfies: GRD-CLI-002
+- satisfies: GRD-HTML-010

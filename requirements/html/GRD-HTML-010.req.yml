@@ -1,0 +1,29 @@
+id: GRD-HTML-010
+title: Per-requirement HTML page links
+require: When the HTML report is written as one page per requirement, each link to a requirement shall target that requirement's page.
+refinement:
+- The index, requirement prose, satisfies links, linked-from links, and parameter source links use that page target.
+- text: A reference to a different requirement targets that requirement's HTML file.
+  refinement:
+  - The file name is the requirement id followed by `.html`, such as `GRD-HTML-002.html`.
+  - When no base URL is set, the href is that file name as a relative URL.
+  - When a base URL is set, the href is the base URL joined as a directory with that file name.
+  - text: A trailing slash on the base URL does not change the joined href.
+    refinement:
+    - The bases `https://mysite.com/requirements` and `https://mysite.com/requirements/` both join `GRD-HTML-002.html` to produce `https://mysite.com/requirements/GRD-HTML-002.html`.
+  - The requirement id is percent-encoded in the URL path.
+- A reference to the requirement shown on the current page targets a same-page fragment of `#` followed by that requirement id.
+- A claim citation on the current page targets a same-page fragment of `#` followed by that citation, such as `#GRD-HTML-001(a)`.
+- A link to the index is the relative file `index.html` when no base URL is set, and the base URL joined as a directory with `index.html` when a base URL is set.
+- The index page includes the hierarchical index defined by GRD-HTML-003 and omits embedded requirement detail sections.
+- Each requirement page includes that requirement's detail and a link back to the index.
+- GitHub file links and HTTP(S) artifact URLs remain as defined by GRD-HTML-008.
+- HTML that is not written as one page per requirement keeps same-document fragment links of `#` followed by the requirement id, including the single combined report and a single-requirement document.
+attributes:
+  rationale: |
+    A published set of pages needs every requirement reference to open the right page. A base URL matches those links to the site they are published on. Relative links keep the same files usable without a fixed host. Same-page claim fragments and the combined report stay usable when the file is opened on its own.
+  status: active
+links:
+- satisfies: GRD-HTML-001
+- satisfies: GRD-HTML-003
+- satisfies: GRD-HTML-006

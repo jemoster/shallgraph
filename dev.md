@@ -113,6 +113,9 @@ Specify a project explicitly:
 shallgraph validate --project-dir /path/to/project
 shallgraph format --project-dir /path/to/project
 shallgraph html --project-dir /path/to/project --output ./out
+shallgraph html --project-dir /path/to/project --output ./out --combined
+shallgraph html --project-dir /path/to/project --output ./out --pages all --base-url https://mysite.com/requirements
+shallgraph html --project-dir /path/to/project --output ./out --pages REQ-001
 shallgraph markdown --project-dir /path/to/project --output ./out
 shallgraph schema --project-dir /path/to/project --format yaml -o ./schema.yaml
 ```

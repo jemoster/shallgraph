@@ -11,7 +11,10 @@ pub mod validate;
 
 pub use bootstrap::{run_bootstrap, BootstrapOptions, BootstrapResult};
 pub use format::run_format;
-pub use html::{discover_github_link_context, run_html, run_html_with_github};
+pub use html::{
+    discover_github_link_context, run_html, run_html_with_github, run_html_with_options,
+    HtmlReportOptions,
+};
 pub use markdown::{run_markdown, run_markdown_with_github};
 pub use schema::{run_schema, SchemaOutputFormat};
 pub use validate::run_validate;
