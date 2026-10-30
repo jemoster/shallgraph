@@ -37,7 +37,7 @@ Use Cursor [Agent Skills](https://cursor.com/docs/context/skills) in `.cursor/sk
 
 - `shallgraph bootstrap` - initialize `shallgraph.yaml` and `requirements/`.
 - `shallgraph validate` - check requirement YAML against the active schema.
-- `shallgraph format` - rewrite requirement YAML into canonical format. Markdown tables in refinement, claim text, and rationale are column-aligned.
+- `shallgraph format` - rewrite requirement YAML into canonical format.
 - `shallgraph html` - generate a static HTML report. When `origin` is GitHub, file paths link to the blob at `HEAD`. `--combined` writes every requirement into one HTML file and is the default. `--pages all` writes `index.html` and one HTML file per requirement. `--pages ID` writes only that requirement's page. `--base-url` sets the prefix for links between those pages, for example `--base-url https://mysite.com/requirements`.
 - `shallgraph markdown` - generate a static Markdown report. Table columns are padded so the vertical bars line up. When `origin` is GitHub, file paths link to the blob at `HEAD`.
 - `shallgraph schema` - print or export the effective requirement schema.
