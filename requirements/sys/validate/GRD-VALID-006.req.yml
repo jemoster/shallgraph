@@ -1,0 +1,10 @@
+id: GRD-VALID-006
+title: Requirement titles must be unique
+require: The tool shall validate that all requirement titles are unique across the project.
+refinement: Duplicate titles shall be reported with the paths of the conflicting files, including when those requirements are documents in the same file.
+attributes:
+  rationale: |
+    Unique titles keep requirements distinguishable in indexes, reports, and editor lists.
+  status: active
+links:
+  - satisfies: GRD-VALID-001

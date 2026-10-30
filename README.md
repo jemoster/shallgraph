@@ -54,7 +54,7 @@ Each requirement file ends in `.req.yml` or `.req.yaml`. A file holds one requir
 Required fields:
 
 - `id` - stable identifier. When the file holds one requirement, `id` matches the filename without the extension. When the file holds several requirements, the filename does not have to match any of those ids.
-- `title` - short requirement name.
+- `title` - short requirement name. Titles are unique across the project.
 
 Required normative field:
 

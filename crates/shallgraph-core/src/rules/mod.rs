@@ -7,6 +7,7 @@ mod require_valid;
 mod satisfies_references_exist;
 mod types;
 mod unique_ids;
+mod unique_titles;
 
 pub use filename_id_match::filename_id_match;
 pub use links_acyclic::links_acyclic;
@@ -15,6 +16,7 @@ pub use require_valid::require_valid;
 pub use satisfies_references_exist::satisfies_references_exist;
 pub use types::{GlobalValidationRule, NamedGlobalRule, NamedRule, ValidationRule};
 pub use unique_ids::unique_ids;
+pub use unique_titles::unique_titles;
 
 use crate::types::{RequirementWithSource, ValidationError};
 
@@ -40,6 +42,10 @@ pub fn default_global_rules() -> Vec<NamedGlobalRule> {
         NamedGlobalRule {
             id: "GRD-VALID-003",
             run: unique_ids,
+        },
+        NamedGlobalRule {
+            id: "GRD-VALID-006",
+            run: unique_titles,
         },
         NamedGlobalRule {
             id: "GRD-VALID-004",
@@ -76,9 +82,10 @@ pub fn run_global_rules(
     errors
 }
 
-/// Validate a list of requirements (GRD-VALID-003 unique ids, GRD-VALID-004
-/// link references exist, GRD-VALID-005 links acyclic, and ruleset rules such
-/// as filename-id match). Returns a list of validation errors; empty if valid.
+/// Validate a list of requirements (GRD-VALID-003 unique ids, GRD-VALID-006
+/// unique titles, GRD-VALID-004 link references exist, GRD-VALID-005 links
+/// acyclic, and ruleset rules such as filename-id match). Returns a list of
+/// validation errors; empty if valid.
 /// GRD-SYS-010: The active profile delegates here for the standard ruleset.
 pub fn validate_requirements(requirements: &[RequirementWithSource]) -> Vec<ValidationError> {
     let mut errors = Vec::new();
@@ -99,7 +106,7 @@ mod tests {
         RequirementWithSource::from_requirement(
             Requirement {
                 id: id.to_string(),
-                title: "Test".to_string(),
+                title: format!("Title for {id} at {source_path}"),
                 require: "The system shall test.".to_string(),
                 refinement: "".into(),
                 attributes: None,
@@ -125,6 +132,7 @@ mod tests {
         assert!(ids.contains(&"GRD-VALID-003"));
         assert!(ids.contains(&"GRD-VALID-004"));
         assert!(ids.contains(&"GRD-VALID-005"));
+        assert!(ids.contains(&"GRD-VALID-006"));
     }
 
     #[test]

@@ -39,7 +39,7 @@ fn category_path_for(source_path: &Path, requirement_dirs: &[PathBuf]) -> Vec<St
 
 /// Load all requirements from a project directory. If `project_root` is provided,
 /// uses that root; otherwise discovers root from `start_dir`.
-/// Parses each requirement file and validates (schema + duplicate ids + broken links).
+/// Parses each requirement file and validates (schema + duplicate ids and titles + broken links).
 /// GRD-SYS-004: Sets category_path on each requirement from directory structure.
 /// GRD-SYS-010: Parsing and validation use the active profile from project configuration.
 #[cfg(feature = "std-fs")]
@@ -327,5 +327,73 @@ parameters:
             .errors
             .iter()
             .any(|e| e.message.contains("Duplicate requirement id") && e.line.is_some()));
+    }
+
+    #[shallgraph::verifies("GRD-VALID-006")]
+    #[test]
+    fn duplicate_title_across_files_is_reported() {
+        let root = temp_project();
+        let reqs = root.join("requirements");
+        fs::create_dir_all(&reqs).unwrap();
+        fs::write(
+            root.join(ROOT_MARKER),
+            "requirement_dirs:\n  - requirements\n",
+        )
+        .unwrap();
+        let first = reqs.join(format!("SYS-001{REQUIREMENT_FILE_EXTENSION}"));
+        let second = reqs.join(format!("SYS-002{REQUIREMENT_FILE_EXTENSION}"));
+        fs::write(
+            &first,
+            "id: SYS-001\ntitle: Shared\nrequire: The system shall be first.\n",
+        )
+        .unwrap();
+        fs::write(
+            &second,
+            "id: SYS-002\ntitle: Shared\nrequire: The system shall be second.\n",
+        )
+        .unwrap();
+        let result = load_requirements(&root, Some(&root)).unwrap();
+        let titles: Vec<_> = result
+            .errors
+            .iter()
+            .filter(|e| e.message.contains("Duplicate requirement title"))
+            .collect();
+        assert_eq!(titles.len(), 1);
+        assert!(titles[0].message.contains("Shared"));
+        assert!(
+            titles[0].message.contains(&first.display().to_string())
+                || titles[0].path == first.display().to_string()
+        );
+        assert!(
+            titles[0].message.contains(&second.display().to_string())
+                || titles[0].path == second.display().to_string()
+        );
+    }
+
+    #[shallgraph::verifies("GRD-VALID-006", "GRD-SYS-020")]
+    #[test]
+    fn duplicate_title_inside_one_file_is_reported() {
+        let root = temp_project();
+        let reqs = root.join("requirements");
+        fs::create_dir_all(&reqs).unwrap();
+        fs::write(
+            root.join(ROOT_MARKER),
+            "requirement_dirs:\n  - requirements\n",
+        )
+        .unwrap();
+        let file = reqs.join(format!("bundle{REQUIREMENT_FILE_EXTENSION}"));
+        fs::write(
+            &file,
+            "id: SYS-001\ntitle: Shared\nrequire: The system shall be first.\n---\nid: SYS-002\ntitle: Shared\nrequire: The system shall be second.\n",
+        )
+        .unwrap();
+        let result = load_requirements(&root, Some(&root)).unwrap();
+        assert!(result.errors.iter().any(|e| {
+            e.message.contains("Duplicate requirement title")
+                && e.message.contains("Shared")
+                && e.message.contains(&file.display().to_string())
+                && e.path == file.display().to_string()
+                && e.line.is_some()
+        }));
     }
 }
