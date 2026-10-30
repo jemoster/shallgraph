@@ -3,6 +3,7 @@ title: Numbered refinement outline in HTML
 require: When `refinement` is a list, the HTML report shall render it as a nested outline using the citation series from GRD-SYS-021.
 refinement: |
   Each claim's text shall be rendered as Markdown, including parameter substitution and requirement-id links.
+  The citation marker shall sit on the same line as the start of that claim's text, and the marker shall not be a link.
   A string `refinement` shall be rendered as a single Markdown block.
 attributes:
   rationale: |
