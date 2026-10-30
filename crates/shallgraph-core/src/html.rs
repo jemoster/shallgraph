@@ -28,10 +28,13 @@ fn render_refinement_html(
     requirement_id: &str,
     by_id: &HashMap<String, &RequirementWithSource>,
     path: &[usize],
+    links: &RequirementLinks,
 ) -> String {
     match refinement {
         Refinement::Prose(text) if text.is_empty() => String::new(),
-        Refinement::Prose(text) => resolve_and_render_text(text, requirement_id, by_id, true),
+        Refinement::Prose(text) => {
+            resolve_and_render_text(text, requirement_id, by_id, true, links)
+        }
         Refinement::Claims(claims) if claims.is_empty() => String::new(),
         Refinement::Claims(claims) => {
             let depth = path.len();
@@ -43,13 +46,24 @@ fn render_refinement_html(
                     claim_path.push(index);
                     let marker = Refinement::outline_marker(depth, index);
                     let citation = Refinement::citation(requirement_id, &claim_path);
-                    let text = resolve_and_render_text(&claim.text, requirement_id, by_id, true);
+                    let text =
+                        resolve_and_render_text(&claim.text, requirement_id, by_id, true, links);
                     let nested = render_refinement_html(
                         &claim.refinement,
                         requirement_id,
                         by_id,
                         &claim_path,
+                        links,
                     );
+                    let marker_html = if links.is_pages() {
+                        format!(
+                            "<a href=\"#{}\">{}</a>",
+                            escape_html(&citation),
+                            escape_html(&marker)
+                        )
+                    } else {
+                        escape_html(&marker)
+                    };
                     let nested_html = match &claim.refinement {
                         Refinement::Prose(prose) if !prose.is_empty() => {
                             format!("<div class=\"claim-prose\">{nested}</div>")
@@ -57,9 +71,9 @@ fn render_refinement_html(
                         _ => nested,
                     };
                     format!(
-                        "<li id=\"{}\"><span class=\"claim-cite\">{}</span><div class=\"claim-text\">{text}</div>{nested_html}</li>",
+                        "<li id=\"{}\"><span class=\"claim-cite\">{marker_html}</span><div class=\"claim-text\">{text}</div>{nested_html}</li>",
                         escape_html(&citation),
-                        escape_html(&marker),
+                        marker_html = marker_html,
                         text = text,
                         nested_html = nested_html,
                     )
@@ -75,6 +89,94 @@ fn escape_html(s: &str) -> String {
         .replace('<', "&lt;")
         .replace('>', "&gt;")
         .replace('"', "&quot;")
+}
+
+/// GRD-HTML-010: Same-document fragments, or one HTML file per requirement.
+#[derive(Clone, Debug)]
+enum RequirementLinks {
+    /// `#ID` inside the combined report or a single-requirement document.
+    Fragment,
+    /// Per-requirement pages. `current_id` is set on that requirement's page and unset on the index.
+    Pages {
+        base_url: Option<String>,
+        current_id: Option<String>,
+    },
+}
+
+impl RequirementLinks {
+    fn pages(base_url: Option<&str>, current_id: Option<&str>) -> Self {
+        let base_url = base_url
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(str::to_string);
+        Self::Pages {
+            base_url,
+            current_id: current_id.map(str::to_string),
+        }
+    }
+
+    fn is_pages(&self) -> bool {
+        matches!(self, Self::Pages { .. })
+    }
+
+    fn current_id(&self) -> Option<&str> {
+        match self {
+            Self::Pages { current_id, .. } => current_id.as_deref(),
+            Self::Fragment => None,
+        }
+    }
+
+    /// Href for a requirement. The current page uses a fragment. Another requirement uses its file.
+    fn requirement_href(&self, id: &str) -> String {
+        match self {
+            Self::Fragment => format!("#{id}"),
+            Self::Pages { current_id, .. } if current_id.as_deref() == Some(id) => {
+                format!("#{id}")
+            }
+            Self::Pages { base_url, .. } => {
+                let file = format!("{}.html", percent_encode_path_segment(id));
+                match base_url {
+                    Some(base) => join_directory_url(base, &file),
+                    None => file,
+                }
+            }
+        }
+    }
+
+    fn index_href(&self) -> String {
+        match self {
+            Self::Pages {
+                base_url: Some(base),
+                ..
+            } => join_directory_url(base, "index.html"),
+            _ => "index.html".to_string(),
+        }
+    }
+}
+
+fn percent_encode_path_segment(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b'~') {
+            out.push(byte as char);
+        } else {
+            out.push_str(&format!("%{byte:02X}"));
+        }
+    }
+    out
+}
+
+fn join_directory_url(base: &str, file_name: &str) -> String {
+    let trimmed = base.trim().trim_end_matches('/');
+    format!("{trimmed}/{file_name}")
+}
+
+fn requirement_anchor(links: &RequirementLinks, id: &str) -> String {
+    format!(
+        "<a href=\"{}\">{}</a>",
+        escape_html(&links.requirement_href(id)),
+        escape_html(id)
+    )
 }
 
 struct IndexNode {
@@ -108,6 +210,7 @@ fn render_index_node(
     node: &IndexNode,
     requirements: &[RequirementWithSource],
     by_id: &HashMap<String, &RequirementWithSource>,
+    links: &RequirementLinks,
 ) -> String {
     let mut parts = Vec::new();
     for (segment, child) in &node.children {
@@ -121,14 +224,13 @@ fn render_index_node(
             parts.push("<ul>".to_string());
             for &idx in &child.requirements {
                 let r = &requirements[idx];
-                let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false);
+                let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false, links);
                 parts.push(format!(
-                    "  <li><a href=\"#{}\">{}</a> – {title_html}</li>",
-                    escape_html(&r.id),
-                    escape_html(&r.id)
+                    "  <li>{} – {title_html}</li>",
+                    requirement_anchor(links, &r.id)
                 ));
             }
-            parts.push(render_index_node(child, requirements, by_id));
+            parts.push(render_index_node(child, requirements, by_id, links));
             parts.push("</ul>".to_string());
         }
         parts.push("</li>".to_string());
@@ -140,16 +242,16 @@ fn render_index_node(
 fn render_hierarchical_index(
     requirements: &[RequirementWithSource],
     by_id: &HashMap<String, &RequirementWithSource>,
+    links: &RequirementLinks,
 ) -> String {
     let root = build_index_tree(requirements);
     let mut parts = Vec::new();
     for &idx in &root.requirements {
         let r = &requirements[idx];
-        let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false);
+        let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false, links);
         parts.push(format!(
-            "    <li><a href=\"#{}\">{}</a> – {title_html}</li>",
-            escape_html(&r.id),
-            escape_html(&r.id)
+            "    <li>{} – {title_html}</li>",
+            requirement_anchor(links, &r.id)
         ));
     }
     let root_list = if parts.is_empty() {
@@ -162,7 +264,7 @@ fn render_hierarchical_index(
     } else {
         format!(
             "\n  <ul class=\"index-by-category\">\n{}\n  </ul>\n",
-            render_index_node(&root, requirements, by_id)
+            render_index_node(&root, requirements, by_id, links)
         )
     };
     format!("{root_list}{child_list}")
@@ -274,12 +376,53 @@ fn id_pattern() -> &'static Regex {
     RE.get_or_init(|| Regex::new(r"\b([A-Z][A-Z0-9]*(?:-[A-Z0-9]+)+)\b").expect("id pattern"))
 }
 
+/// GRD-HTML-010: A claim citation of the requirement on this page links to `#` plus that citation.
+fn link_current_citations_outside_anchors(rendered_html: &str, links: &RequirementLinks) -> String {
+    let Some(current_id) = links.current_id().filter(|_| links.is_pages()) else {
+        return rendered_html.to_string();
+    };
+    let pattern = format!(r"\b{}(?:\([^)]+\))+", regex::escape(current_id));
+    let re = Regex::new(&pattern).expect("current citation pattern");
+    let tokens: Vec<&str> = split_keeping_tags(rendered_html);
+    let mut anchor_depth = 0i32;
+    let mut out = String::new();
+    for token in tokens {
+        if token.starts_with('<') {
+            let lower = token.to_ascii_lowercase();
+            if lower.starts_with("<a ") || lower.starts_with("<a>") {
+                anchor_depth += 1;
+            }
+            if lower.starts_with("</a>") {
+                anchor_depth = (anchor_depth - 1).max(0);
+            }
+            out.push_str(token);
+            continue;
+        }
+        if anchor_depth > 0 {
+            out.push_str(token);
+            continue;
+        }
+        let replaced = re.replace_all(token, |caps: &regex::Captures| {
+            let citation = &caps[0];
+            format!(
+                "<a href=\"#{}\">{}</a>",
+                escape_html(citation),
+                escape_html(citation)
+            )
+        });
+        out.push_str(&replaced);
+    }
+    out
+}
+
 /// GRD-HTML-006: Link requirement ID references in rendered text fields.
 fn auto_link_requirement_refs(
     rendered_html: &str,
     by_id: &HashMap<String, &RequirementWithSource>,
+    links: &RequirementLinks,
 ) -> String {
-    let tokens: Vec<&str> = split_keeping_tags(rendered_html);
+    let rendered_html = link_current_citations_outside_anchors(rendered_html, links);
+    let tokens: Vec<&str> = split_keeping_tags(&rendered_html);
     let mut anchor_depth = 0i32;
     let re = id_pattern();
     let mut out = String::new();
@@ -302,11 +445,7 @@ fn auto_link_requirement_refs(
         let replaced = re.replace_all(token, |caps: &regex::Captures| {
             let candidate = &caps[1];
             if by_id.contains_key(candidate) {
-                format!(
-                    "<a href=\"#{}\">{}</a>",
-                    escape_html(candidate),
-                    escape_html(candidate)
-                )
+                requirement_anchor(links, candidate)
             } else {
                 caps[0].to_string()
             }
@@ -351,6 +490,7 @@ fn resolve_and_render_text(
     current_req_id: &str,
     by_id: &HashMap<String, &RequirementWithSource>,
     use_markdown: bool,
+    links: &RequirementLinks,
 ) -> String {
     let segments = resolve_to_segments(text, current_req_id, by_id);
     let mut param_spans: Vec<String> = Vec::new();
@@ -365,8 +505,8 @@ fn resolve_and_render_text(
             resolved.push(placeholder);
             let link = if let Some(source) = &seg.source_req_id {
                 format!(
-                    "<a href=\"#{}\" title=\"Parameter {} from {}\">{}</a>",
-                    escape_html(source),
+                    "<a href=\"{}\" title=\"Parameter {} from {}\">{}</a>",
+                    escape_html(&links.requirement_href(source)),
                     escape_html(seg.param_name.as_deref().unwrap_or("")),
                     escape_html(source),
                     escape_html(&seg.text)
@@ -392,7 +532,7 @@ fn resolve_and_render_text(
             .to_string();
         out = out.replace(&placeholder, span);
     }
-    auto_link_requirement_refs(&out, by_id)
+    auto_link_requirement_refs(&out, by_id, links)
 }
 
 const META_ATTR_KEYS: &[&str] = &["status"];
@@ -440,6 +580,7 @@ fn requirement_detail_html(
     by_id: &HashMap<String, &RequirementWithSource>,
     source_links: &[&SourceLink],
     artifact_links: Option<&ArtifactLinkRenderOptions>,
+    links: &RequirementLinks,
 ) -> String {
     let attrs = r.attributes.clone().unwrap_or_default();
     let attr_entries: Vec<(&String, &serde_json::Value)> =
@@ -488,11 +629,7 @@ fn requirement_detail_html(
                 .map(|re| re.is_match(val_str))
                 .unwrap_or(false);
             let link_val = if is_ref {
-                format!(
-                    "<a href=\"#{}\">{}</a>",
-                    escape_html(val_str),
-                    escape_html(val_str)
-                )
+                requirement_anchor(links, val_str)
             } else {
                 escape_html(val_str)
             };
@@ -536,13 +673,7 @@ fn requirement_detail_html(
     } else {
         let items: String = satisfies_ids
             .iter()
-            .map(|id| {
-                format!(
-                    "<li><a href=\"#{}\">{}</a></li>",
-                    escape_html(id),
-                    escape_html(id)
-                )
-            })
+            .map(|id| format!("<li>{}</li>", requirement_anchor(links, id)))
             .collect();
         format!(
             "<div class=\"labeled-block\"><span class=\"label\">Satisfies</span><ul class=\"satisfies-list\">{items}</ul></div>"
@@ -553,13 +684,7 @@ fn requirement_detail_html(
         Some(ids) if !ids.is_empty() => {
             let items: String = ids
                 .iter()
-                .map(|id| {
-                    format!(
-                        "<li><a href=\"#{}\">{}</a></li>",
-                        escape_html(id),
-                        escape_html(id)
-                    )
-                })
+                .map(|id| format!("<li>{}</li>", requirement_anchor(links, id)))
                 .collect();
             format!(
                 "<div class=\"labeled-block\"><span class=\"label\">Linked from</span><ul class=\"linked-from-list\">{items}</ul></div>"
@@ -585,9 +710,9 @@ fn requirement_detail_html(
                 other => other.to_string(),
             };
             let html = if k.as_str() == "rationale" {
-                resolve_and_render_text(&str_val, &r.id, by_id, true)
+                resolve_and_render_text(&str_val, &r.id, by_id, true, links)
             } else {
-                resolve_and_render_text(&str_val, &r.id, by_id, false)
+                resolve_and_render_text(&str_val, &r.id, by_id, false, links)
             };
             format!(
                 "<div class=\"labeled-block\"><span class=\"label\">{}</span><div class=\"rationale\">{html}</div></div>",
@@ -606,6 +731,7 @@ fn requirement_detail_html(
         by_id,
         &r.id,
         artifact_links,
+        links,
     );
     let verified_by_html = combined_trace_section_html(
         "Verified by",
@@ -617,6 +743,7 @@ fn requirement_detail_html(
         by_id,
         &r.id,
         artifact_links,
+        links,
     );
 
     let links_at_bottom = [
@@ -631,9 +758,9 @@ fn requirement_detail_html(
     .collect::<Vec<_>>()
     .join("\n      ");
 
-    let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false);
-    let require_html = resolve_and_render_text(&r.require, &r.id, by_id, false);
-    let refinement_html = render_refinement_html(&r.refinement, &r.id, by_id, &[]);
+    let title_html = resolve_and_render_text(&r.title, &r.id, by_id, false, links);
+    let require_html = resolve_and_render_text(&r.require, &r.id, by_id, false, links);
+    let refinement_html = render_refinement_html(&r.refinement, &r.id, by_id, &[], links);
 
     let refinement_block = if refinement_html.is_empty() {
         String::new()
@@ -698,6 +825,7 @@ fn artifact_refs_list_html(
     by_id: &HashMap<String, &RequirementWithSource>,
     requirement_id: &str,
     artifact_links: Option<&ArtifactLinkRenderOptions>,
+    links: &RequirementLinks,
 ) -> String {
     let http_attrs = if artifact_links.is_some() {
         GITHUB_LINK_ATTRS
@@ -729,7 +857,7 @@ fn artifact_refs_list_html(
             .map(str::trim)
             .filter(|s| !s.is_empty())
         {
-            let desc_html = resolve_and_render_text(desc, requirement_id, by_id, false);
+            let desc_html = resolve_and_render_text(desc, requirement_id, by_id, false, links);
             items.push(format!(
                 "<li>{artifact_html} <span class=\"artifact-desc\">— {desc_html}</span></li>"
             ));
@@ -820,13 +948,14 @@ fn combined_trace_section_html<'a, I>(
     by_id: &HashMap<String, &RequirementWithSource>,
     requirement_id: &str,
     artifact_links: Option<&ArtifactLinkRenderOptions>,
+    links: &RequirementLinks,
 ) -> String
 where
     I: IntoIterator<Item = &'a SourceLink>,
 {
     let yaml_list = yaml_refs
         .filter(|refs| !refs.is_empty())
-        .map(|refs| artifact_refs_list_html(refs, by_id, requirement_id, artifact_links))
+        .map(|refs| artifact_refs_list_html(refs, by_id, requirement_id, artifact_links, links))
         .unwrap_or_default();
     let source_list = source_links_list_html(source_links, artifact_links);
     let groups = [
@@ -892,6 +1021,7 @@ pub fn generate_single_requirement_html_with_source_links(
         &by_id,
         &req_links,
         artifact_links,
+        &RequirementLinks::Fragment,
     );
 
     format!(
@@ -955,7 +1085,8 @@ pub fn generate_full_html_with_artifact_links(
 ) -> String {
     let by_id: HashMap<String, &RequirementWithSource> =
         requirements.iter().map(|r| (r.id.clone(), r)).collect();
-    let index_html = render_hierarchical_index(requirements, &by_id);
+    let fragment_links = RequirementLinks::Fragment;
+    let index_html = render_hierarchical_index(requirements, &by_id, &fragment_links);
     let linked_from = linked_from_map(requirements);
     let details: String = requirements
         .iter()
@@ -967,6 +1098,7 @@ pub fn generate_full_html_with_artifact_links(
                 &by_id,
                 &req_links,
                 artifact_links,
+                &fragment_links,
             )
         })
         .collect::<Vec<_>>()
@@ -1013,6 +1145,114 @@ pub fn generate_full_html_with_artifact_links(
 </body>
 </html>"#,
         count = requirements.len(),
+        REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
+    )
+}
+
+/// GRD-HTML-010: Index page for one HTML file per requirement. Detail sections are omitted.
+#[shallgraph::implements("GRD-HTML-010")]
+pub fn generate_requirement_index_page_html(
+    requirements: &[RequirementWithSource],
+    base_url: Option<&str>,
+) -> String {
+    let by_id: HashMap<String, &RequirementWithSource> =
+        requirements.iter().map(|r| (r.id.clone(), r)).collect();
+    let links = RequirementLinks::pages(base_url, None);
+    let index_html = render_hierarchical_index(requirements, &by_id, &links);
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Requirements report</title>
+  <style>
+    body {{ font-family: system-ui, sans-serif; max-width: 60rem; margin: 0 auto; padding: 1rem; }}
+    h1 {{ margin-top: 0; }}
+    .label {{ font-weight: 600; color: #444; }}
+    .index-category {{ font-weight: 600; color: #333; }}
+    .param-value {{ background: #e8f4f8; padding: 0.1em 0.3em; border-radius: 3px; font-weight: 500; }}
+  </style>
+</head>
+<body>
+  <h1>Requirements</h1>
+  <p>Total: {count}</p>
+  <h2>Index</h2>
+{index_html}
+</body>
+</html>"#,
+        count = requirements.len(),
+    )
+}
+
+/// GRD-HTML-010: One requirement page. Links to other requirements name those pages.
+#[shallgraph::implements("GRD-HTML-010")]
+pub fn generate_requirement_page_html(
+    requirement: &RequirementWithSource,
+    all_requirements: &[RequirementWithSource],
+    source_links: &[SourceLink],
+    artifact_links: Option<&ArtifactLinkRenderOptions>,
+    base_url: Option<&str>,
+) -> String {
+    let list: &[RequirementWithSource] = if all_requirements.is_empty() {
+        std::slice::from_ref(requirement)
+    } else {
+        all_requirements
+    };
+    let by_id: HashMap<String, &RequirementWithSource> =
+        list.iter().map(|r| (r.id.clone(), r)).collect();
+    let links = RequirementLinks::pages(base_url, Some(requirement.id.as_str()));
+    let linked_from = linked_from_map(list);
+    let req_links = source_links_for_requirement(source_links, &requirement.id);
+    let detail = requirement_detail_html(
+        requirement,
+        linked_from.get(&requirement.id).map(|v| v.as_slice()),
+        &by_id,
+        &req_links,
+        artifact_links,
+        &links,
+    );
+    let index_link = format!(
+        "<p class=\"index-link\"><a href=\"{}\">Index</a></p>",
+        escape_html(&links.index_href())
+    );
+
+    format!(
+        r#"<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Requirement {id}</title>
+  <style>
+    body {{ font-family: system-ui, sans-serif; max-width: 60rem; margin: 0 auto; padding: 1rem; }}
+    .requirement-detail {{ margin: 0; padding: 0; border: none; }}
+    .meta, .source {{ color: #666; font-size: 0.9rem; }}
+    .label {{ font-weight: 600; color: #444; }}
+    .labeled-block {{ margin-top: 0.75rem; }}
+    .labeled-block .label {{ display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }}
+    .require, .refinement p, .rationale p {{ margin: 0.4em 0; }}
+    .refinement p:first-child, .rationale p:first-child {{ margin-top: 0; }}
+    .refinement p:last-child, .rationale p:last-child {{ margin-bottom: 0; }}
+    {REFINEMENT_OUTLINE_CSS}
+    .rationale {{ margin-top: 0; }}
+    .satisfies-list, .linked-from-list, .artifact-refs-list, .source-links-list {{ margin: 0.25rem 0 0 1.25rem; padding: 0; }}
+    .source-link-item, .source-link-lines {{ color: #666; }}
+    .link-origin {{ margin-top: 0.35rem; margin-left: 0.25rem; }}
+    .link-origin > .label {{ font-size: 0.8rem; color: #555; }}
+    .param-value {{ background: #e8f4f8; padding: 0.1em 0.3em; border-radius: 3px; font-weight: 500; }}
+    .parameters-table {{ margin: 0.25rem 0 0 0; border-collapse: collapse; width: 100%; max-width: 30rem; }}
+    .parameters-table th, .parameters-table td {{ padding: 0.25rem 0.5rem; text-align: left; border: 1px solid #ddd; }}
+    .parameters-table th {{ font-weight: 600; color: #444; background: #f8f8f8; }}
+    .index-link {{ margin: 0 0 1rem; }}
+  </style>
+</head>
+<body>
+{index_link}
+{detail}
+</body>
+</html>"#,
+        id = escape_html(&requirement.id),
         REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
     )
 }
@@ -1709,5 +1949,138 @@ mod tests {
         assert!(html.contains("<code>src/foo.ts</code>"));
         assert!(html.contains("/workspace/requirements/html/GRD-HTML-008.req.yml"));
         assert!(!html.contains("href=\"/workspace/requirements/html/GRD-HTML-008.req.yml\""));
+    }
+
+    fn page_requirements() -> (
+        RequirementWithSource,
+        RequirementWithSource,
+        RequirementWithSource,
+    ) {
+        let mut current = req("GRD-PAGE-001", "Current");
+        current.require =
+            "GRD-PAGE-001 depends on GRD-PAGE-002 with {{ GRD-PAGE-002:limit }}.".into();
+        current.refinement = Refinement::Claims(vec![Claim {
+            text: "See GRD-PAGE-001(a) and also GRD-PAGE-002.".into(),
+            refinement: Refinement::Prose(String::new()),
+        }]);
+        current.links = Some(vec![Link {
+            satisfies: Some("GRD-PAGE-002".into()),
+            extra: BTreeMap::new(),
+        }]);
+        current.satisfied_by = Some(vec![ArtifactRef {
+            artifact: "https://example.com/evidence".into(),
+            description: None,
+        }]);
+        let mut other = req("GRD-PAGE-002", "Other");
+        other.parameters = Some(IndexMap::from([(
+            "limit".into(),
+            ParameterValue::String("5".into()),
+        )]));
+        other.links = Some(vec![Link {
+            satisfies: Some("GRD-PAGE-001".into()),
+            extra: BTreeMap::new(),
+        }]);
+        let mut third = req("GRD-PAGE-003", "Third");
+        third.links = Some(vec![Link {
+            satisfies: Some("GRD-PAGE-001".into()),
+            extra: BTreeMap::new(),
+        }]);
+        (current, other, third)
+    }
+
+    #[shallgraph::verifies("GRD-HTML-010")]
+    #[test]
+    fn per_requirement_index_links_pages_and_omits_details() {
+        let (current, other, third) = page_requirements();
+        let html = generate_requirement_index_page_html(&[current, other, third], None);
+        assert!(html.contains("<h2>Index</h2>"));
+        assert!(html.contains("href=\"GRD-PAGE-001.html\""));
+        assert!(html.contains("href=\"GRD-PAGE-002.html\""));
+        assert!(!html.contains("<h2>Details</h2>"));
+        assert!(!html.contains("class=\"requirement-detail\""));
+        assert!(!html.contains("href=\"#GRD-PAGE-001\""));
+    }
+
+    #[shallgraph::verifies("GRD-HTML-010")]
+    #[test]
+    fn per_requirement_page_targets_other_pages_and_same_page_fragments() {
+        let (current, other, third) = page_requirements();
+        let all = [current.clone(), other, third];
+        let html = generate_requirement_page_html(&current, &all, &[], None, None);
+        assert!(html.contains("class=\"requirement-detail\""));
+        assert!(html.contains("href=\"index.html\""));
+        assert!(html.contains("href=\"#GRD-PAGE-001\""));
+        assert!(html.contains("href=\"GRD-PAGE-002.html\""));
+        assert!(html.contains("href=\"GRD-PAGE-003.html\""));
+        assert!(html.contains("href=\"#GRD-PAGE-001(a)\""));
+        assert!(html.contains("href=\"https://example.com/evidence\""));
+        assert!(!html.contains("href=\"GRD-PAGE-001.html\""));
+        let satisfies = html.find("Satisfies").map(|start| &html[start..]).unwrap();
+        assert!(satisfies.contains("href=\"GRD-PAGE-002.html\""));
+        let linked = html
+            .find("Linked from")
+            .map(|start| &html[start..])
+            .unwrap();
+        assert!(linked.contains("href=\"GRD-PAGE-002.html\""));
+        assert!(linked.contains("href=\"GRD-PAGE-003.html\""));
+        assert!(html.contains("title=\"Parameter limit from GRD-PAGE-002\""));
+        assert!(html.contains("href=\"GRD-PAGE-002.html\""));
+    }
+
+    #[shallgraph::verifies("GRD-HTML-010")]
+    #[test]
+    fn per_requirement_base_url_ignores_one_trailing_slash() {
+        let (current, other, third) = page_requirements();
+        let all = [current.clone(), other, third];
+        let with_slash = generate_requirement_page_html(
+            &current,
+            &all,
+            &[],
+            None,
+            Some("https://mysite.com/requirements/"),
+        );
+        let without_slash = generate_requirement_page_html(
+            &current,
+            &all,
+            &[],
+            None,
+            Some("https://mysite.com/requirements"),
+        );
+        let page = "href=\"https://mysite.com/requirements/GRD-PAGE-002.html\"";
+        let index = "href=\"https://mysite.com/requirements/index.html\"";
+        assert!(with_slash.contains(page));
+        assert!(without_slash.contains(page));
+        assert!(with_slash.contains(index));
+        assert!(without_slash.contains(index));
+        assert!(with_slash.contains("href=\"#GRD-PAGE-001(a)\""));
+    }
+
+    #[shallgraph::verifies("GRD-HTML-010")]
+    #[test]
+    fn per_requirement_page_percent_encodes_the_id_in_the_path() {
+        let spaced = req("GRD-A B", "Spaced");
+        let mut other = req("GRD-PAGE-002", "Other");
+        other.links = Some(vec![Link {
+            satisfies: Some("GRD-A B".into()),
+            extra: BTreeMap::new(),
+        }]);
+        let html =
+            generate_requirement_page_html(&other, &[spaced, other.clone()], &[], None, None);
+        assert!(html.contains("href=\"GRD-A%20B.html\""));
+    }
+
+    #[shallgraph::verifies("GRD-HTML-010")]
+    #[test]
+    fn combined_report_and_single_document_keep_fragment_links() {
+        let (current, other, third) = page_requirements();
+        let full = generate_full_html(&[current.clone(), other.clone(), third]);
+        assert!(full.contains("href=\"#GRD-PAGE-002\""));
+        assert!(full.contains("<h2>Details</h2>"));
+        assert!(!full.contains("GRD-PAGE-002.html"));
+        assert!(!full.contains("href=\"#GRD-PAGE-001(a)\""));
+        let single = generate_single_requirement_html(&current, Some(&[current.clone(), other]));
+        assert!(single.contains("href=\"#GRD-PAGE-002\""));
+        assert!(!single.contains("class=\"index-link\""));
+        assert!(!single.contains("GRD-PAGE-002.html"));
     }
 }

@@ -48,10 +48,11 @@ From this directory, after `shallgraph` is on `PATH`:
 
 ```bash
 shallgraph html --output ./out
+shallgraph html --pages all --output ./out
 shallgraph markdown --output ./out
 ```
 
-Open `out/index.html` or `out/index.md`. Each requirement includes:
+Open `out/index.html` or `out/index.md`. `--combined` is the default and writes every requirement into `index.html`. `--pages all` also writes one HTML file per requirement next to `index.html`, and those pages link to each other. Add `--base-url` when the pages will be published under a fixed address. Each requirement includes:
 
 - **Satisfied by**
   - **By comment** — YAML `satisfied_by` artifact paths

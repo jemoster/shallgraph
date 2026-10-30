@@ -58,4 +58,31 @@ pub trait RequirementProfile: Send + Sync {
         source_links: &[SourceLink],
         artifact_links: Option<&ArtifactLinkRenderOptions>,
     ) -> String;
+
+    /// GRD-HTML-010: Index page when the report is one HTML file per requirement.
+    fn generate_requirement_index_page_html(
+        &self,
+        requirements: &[RequirementWithSource],
+        base_url: Option<&str>,
+    ) -> String {
+        crate::html::generate_requirement_index_page_html(requirements, base_url)
+    }
+
+    /// GRD-HTML-010: One requirement page. `base_url` is the optional publish prefix.
+    fn generate_requirement_page_html(
+        &self,
+        requirement: &RequirementWithSource,
+        all_requirements: &[RequirementWithSource],
+        source_links: &[SourceLink],
+        artifact_links: Option<&ArtifactLinkRenderOptions>,
+        base_url: Option<&str>,
+    ) -> String {
+        crate::html::generate_requirement_page_html(
+            requirement,
+            all_requirements,
+            source_links,
+            artifact_links,
+            base_url,
+        )
+    }
 }

@@ -4,8 +4,8 @@ extern crate shallgraph_macros as shallgraph;
 
 use clap::{Parser, Subcommand, ValueEnum};
 use shallgraph_cli::{
-    run_bootstrap, run_format, run_html, run_markdown, run_schema, run_validate, BootstrapOptions,
-    SchemaOutputFormat,
+    run_bootstrap, run_format, run_html_with_options, run_markdown, run_schema, run_validate,
+    BootstrapOptions, HtmlReportOptions, SchemaOutputFormat,
 };
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
@@ -21,7 +21,7 @@ Pass -v or --version to print the semantic version and exit.\n\n\
 Commands:\n  \
   validate   Check requirement files for schema, duplicate IDs, and broken links\n  \
   format     Rewrite requirement YAML files to canonical formatting\n  \
-  html       Generate an HTML report of all requirements\n  \
+  html       Generate an HTML report of requirements\n  \
   markdown   Generate a Markdown report of all requirements\n  \
   schema     Print the requirement schema for the current project (JSON Schema or YAML)\n  \
   bootstrap  Initialize a directory with shallgraph.yaml and a requirements folder"
@@ -45,11 +45,20 @@ enum Command {
     Validate,
     /// Rewrite requirement YAML files to canonical formatting
     Format,
-    /// Generate an HTML report of all requirements
+    /// Generate an HTML report of requirements
     Html {
-        /// Output directory for index.html (default: .)
+        /// Output directory (default: .)
         #[arg(short = 'o', long = "output", default_value = ".", value_name = "DIR")]
         output: PathBuf,
+        /// Write every requirement into one HTML file. This is the default.
+        #[arg(long, conflicts_with = "pages")]
+        combined: bool,
+        /// Write one HTML file per requirement. `all` writes the index and every requirement. A requirement id writes only that page.
+        #[arg(long, value_name = "all|ID", conflicts_with = "combined")]
+        pages: Option<String>,
+        /// Base URL for links between requirement pages. Requires --pages.
+        #[arg(long, value_name = "URL", requires = "pages")]
+        base_url: Option<String>,
     },
     /// Generate a Markdown report of all requirements
     Markdown {
@@ -136,7 +145,17 @@ fn main() -> ExitCode {
                 false
             }
         },
-        Command::Html { output } => match run_html(&project_dir, &output) {
+        Command::Html {
+            output,
+            combined: _,
+            pages,
+            base_url,
+        } => match run_html_with_options(
+            &project_dir,
+            &output,
+            &HtmlReportOptions { pages, base_url },
+            shallgraph_cli::discover_github_link_context,
+        ) {
             Ok(ok) => ok,
             Err(err) => {
                 eprintln!("{err}");

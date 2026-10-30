@@ -45,7 +45,8 @@ pub use format::{
 };
 pub use html::{
     generate_full_html, generate_full_html_with_artifact_links,
-    generate_full_html_with_source_links, generate_single_requirement_html,
+    generate_full_html_with_source_links, generate_requirement_index_page_html,
+    generate_requirement_page_html, generate_single_requirement_html,
     generate_single_requirement_html_with_source_links,
 };
 pub use load::get_requirements_with_links;

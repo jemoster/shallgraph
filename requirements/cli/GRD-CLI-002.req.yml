@@ -7,6 +7,8 @@ refinement: |
   By default, the report shall be generated in the current working directory.
 
   The user shall be able to specify a different output directory using the --output flag.
+
+  `--combined` selects this report explicitly. One HTML file per requirement, including an optional base URL for links between those pages, is defined by GRD-CLI-012.
 attributes:
   rationale: |
     Stakeholders and teams need a shareable, readable report of requirements

@@ -398,6 +398,220 @@ fn help_lists_version_flags() {
     assert!(text.contains("Print the semantic version"));
 }
 
+#[shallgraph::verifies("GRD-CLI-012")]
+#[test]
+fn html_help_lists_combined_pages_and_base_url() {
+    let out = Command::new(bin())
+        .args(["html", "--help"])
+        .output()
+        .unwrap();
+    assert!(out.status.success());
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(text.contains("--combined"));
+    assert!(text.contains("--pages"));
+    assert!(text.contains("--base-url"));
+    assert!(text.contains("--output"));
+    assert!(!text.contains("--single-page"));
+}
+
+#[shallgraph::verifies("GRD-CLI-012")]
+#[test]
+fn html_combined_flag_writes_the_single_report() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!(
+        "shallgraph-bin-html-combined-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--combined",
+        ])
+        .output()
+        .unwrap();
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(out.status.success(), "{stderr}");
+    let index = fs::read_to_string(tmp.join("index.html")).unwrap();
+    assert!(index.contains("<h2>Details</h2>"));
+    assert!(index.contains("href=\"#SYS-001\""));
+    assert!(!tmp.join("SYS-001.html").exists());
+}
+
+#[shallgraph::verifies("GRD-CLI-012")]
+#[test]
+fn html_combined_and_pages_together_writes_nothing() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-html-both-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--combined",
+            "--pages",
+            "all",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(!tmp.join("index.html").exists());
+}
+
+#[shallgraph::verifies("GRD-CLI-012", "GRD-HTML-010")]
+#[test]
+fn html_pages_all_writes_index_and_requirement_pages() {
+    let root = repo_root();
+    let tmp =
+        std::env::temp_dir().join(format!("shallgraph-bin-html-pages-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--pages",
+            "all",
+        ])
+        .output()
+        .unwrap();
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(
+        out.status.success(),
+        "html pages failed: stdout={stdout} stderr={stderr}"
+    );
+    let index = fs::read_to_string(tmp.join("index.html")).unwrap();
+    assert!(index.contains("<h2>Index</h2>"));
+    assert!(index.contains("href=\"SYS-001.html\""));
+    assert!(!index.contains("class=\"requirement-detail\""));
+    let page = fs::read_to_string(tmp.join("SYS-003.html")).unwrap();
+    assert!(page.contains("href=\"index.html\""));
+    assert!(page.contains("href=\"SYS-001.html\""));
+    assert!(page.contains("href=\"#SYS-003(a)\""));
+    assert!(page.contains("class=\"requirement-detail\""));
+    let html_files = fs::read_dir(&tmp)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "html"))
+        .count();
+    let total: usize = index
+        .split("Total: ")
+        .nth(1)
+        .and_then(|rest| rest.split('<').next())
+        .and_then(|value| value.trim().parse().ok())
+        .unwrap();
+    assert_eq!(html_files, total + 1);
+}
+
+#[shallgraph::verifies("GRD-CLI-012", "GRD-HTML-010")]
+#[test]
+fn html_pages_one_id_writes_only_that_file() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-html-one-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--pages",
+            "SYS-001",
+            "--base-url",
+            "https://mysite.com/requirements/",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(!tmp.join("index.html").exists());
+    assert!(!tmp.join("SYS-002.html").exists());
+    let page = fs::read_to_string(tmp.join("SYS-001.html")).unwrap();
+    assert!(page.contains("href=\"https://mysite.com/requirements/SYS-002.html\""));
+    assert!(page.contains("href=\"https://mysite.com/requirements/index.html\""));
+}
+
+#[shallgraph::verifies("GRD-CLI-012")]
+#[test]
+fn html_base_url_without_pages_writes_nothing() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!("shallgraph-bin-html-base-{}", std::process::id()));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--base-url",
+            "https://mysite.com/requirements",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    assert!(!tmp.join("index.html").exists());
+    let html_files = fs::read_dir(&tmp)
+        .unwrap()
+        .filter_map(|entry| entry.ok())
+        .filter(|entry| entry.path().extension().is_some_and(|ext| ext == "html"))
+        .count();
+    assert_eq!(html_files, 0);
+}
+
+#[shallgraph::verifies("GRD-CLI-012")]
+#[test]
+fn html_unknown_pages_id_writes_nothing() {
+    let root = repo_root();
+    let tmp = std::env::temp_dir().join(format!(
+        "shallgraph-bin-html-missing-{}",
+        std::process::id()
+    ));
+    let _ = fs::remove_dir_all(&tmp);
+    fs::create_dir_all(&tmp).unwrap();
+    let out = Command::new(bin())
+        .args([
+            "html",
+            "--project-dir",
+            root.join("sample_projects/basic").to_str().unwrap(),
+            "--output",
+            tmp.to_str().unwrap(),
+            "--pages",
+            "ALL",
+        ])
+        .output()
+        .unwrap();
+    assert!(!out.status.success());
+    let stderr = String::from_utf8_lossy(&out.stderr);
+    assert!(stderr.contains("ALL"));
+    assert_eq!(
+        fs::read_dir(&tmp)
+            .unwrap()
+            .filter_map(|entry| entry.ok())
+            .count(),
+        0
+    );
+}
+
 #[test]
 fn validate_this_repository() {
     let root = repo_root();
