@@ -1,0 +1,22 @@
+id: GRD-SYS-022
+title: Align Markdown tables when formatting requirements
+require: The requirement formatter shall align the columns of Markdown tables in the Markdown sections of a requirement file.
+refinement: |
+  Markdown sections are refinement prose, including a nested refinement, claim text, and rationale.
+
+  Alignment uses the same column rules as the Markdown report. A separator cell keeps a leading colon, a trailing colon, or both. A vertical bar escaped as `\|`, and a vertical bar inside inline code, stays inside its cell. Tables inside fenced code blocks stay as written.
+
+  Formatting the same file again shall leave those tables unchanged.
+attributes:
+  rationale: |
+    Requirement files are read as source. An unaligned table in a refinement is as illegible there as it is in the generated report.
+  status: active
+satisfied_by:
+- artifact: crates/shallgraph-core/src/format.rs
+  description: Aligns Markdown tables while serializing requirement YAML.
+verified_by:
+- artifact: crates/shallgraph-core/src/format.rs
+  description: Unit tests cover refinement, nested refinement, claim text, rationale, fenced code, and a second format pass.
+links:
+- satisfies: GRD-SYS-011
+- satisfies: GRD-MD-010

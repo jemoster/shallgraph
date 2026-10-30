@@ -1,0 +1,23 @@
+id: GRD-MD-010
+title: Aligned Markdown tables
+require: The Markdown report shall align the columns of every Markdown table.
+refinement: |
+  Alignment applies to the parameters table and to Markdown tables in rendered prose, including refinement and rationale.
+
+  Each column shall be as wide as its widest cell, and at least three characters wide. Cells shall be padded so the vertical bars in each row line up. A separator cell shall keep a leading colon, a trailing colon, or both, so left, right, and center alignment stay in the source.
+
+  A vertical bar escaped as `\|`, and a vertical bar inside inline code, shall stay inside its cell. Tables inside fenced code blocks shall be left unchanged.
+attributes:
+  rationale: |
+    Unaligned Markdown tables are illegible in the report source. Cells that contain vertical bars are especially hard to scan when the columns do not line up.
+  status: active
+satisfied_by:
+- artifact: crates/shallgraph-core/src/markdown.rs
+  description: Pads Markdown table columns in the generated report.
+verified_by:
+- artifact: crates/shallgraph-core/src/markdown.rs
+  description: Unit tests cover parameter tables, prose tables, alignment markers, escaped bars, and fenced code.
+links:
+- satisfies: GRD-MD-001
+- satisfies: GRD-MD-004
+- satisfies: GRD-MD-005

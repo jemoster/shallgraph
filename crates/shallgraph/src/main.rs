@@ -20,7 +20,7 @@ Usage: shallgraph <command> [options]\n\n\
 Pass -v or --version to print the semantic version and exit.\n\n\
 Commands:\n  \
   validate   Check requirement files for schema, duplicate IDs, and broken links\n  \
-  format     Rewrite requirement YAML files to canonical formatting\n  \
+  format     Rewrite requirement YAML to canonical form and align Markdown tables\n  \
   html       Generate an HTML report of requirements\n  \
   markdown   Generate a Markdown report of all requirements\n  \
   schema     Print the requirement schema for the current project (JSON Schema or YAML)\n  \
@@ -43,7 +43,7 @@ struct Cli {
 enum Command {
     /// Check requirement files for schema, duplicate IDs, and broken links
     Validate,
-    /// Rewrite requirement YAML files to canonical formatting
+    /// Rewrite requirement YAML to canonical form and align Markdown tables
     Format,
     /// Generate an HTML report of requirements
     Html {

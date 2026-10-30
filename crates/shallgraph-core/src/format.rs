@@ -95,7 +95,7 @@ fn attributes_to_yaml(attrs: &IndexMap<String, serde_json::Value>) -> Option<Val
     keys.sort();
     let mut map = Mapping::new();
     for k in keys {
-        mapping_insert(&mut map, k, json_to_yaml(&sort_json_keys_deep(&attrs[k])));
+        mapping_insert(&mut map, k, attribute_to_yaml(k, &attrs[k]));
     }
     Some(Value::Mapping(map))
 }
@@ -178,6 +178,21 @@ fn links_to_yaml(links: &[Link]) -> Option<Value> {
     Some(Value::Sequence(links.iter().map(link_to_yaml).collect()))
 }
 
+/// GRD-SYS-022: Align Markdown tables in refinement prose, claim text, and rationale.
+#[shallgraph::implements("GRD-SYS-022")]
+fn align_markdown_section(text: &str) -> String {
+    crate::markdown::align_markdown_tables(text)
+}
+
+fn attribute_to_yaml(key: &str, value: &serde_json::Value) -> Value {
+    if key == "rationale" {
+        if let serde_json::Value::String(text) = value {
+            return Value::String(align_markdown_section(text));
+        }
+    }
+    json_to_yaml(&sort_json_keys_deep(value))
+}
+
 /// Use block clip chomping (`|`) instead of strip (`|-`) for refinement, rationale, and claim text.
 fn prefer_clip_block_chomp_for_markdown_keys(yaml: &str) -> String {
     let re = Regex::new(r"(?m)^([ \t]*(?:refinement|rationale|text):[ \t]*)\|-(\r?\n)").unwrap();
@@ -189,7 +204,7 @@ fn prefer_clip_block_chomp_for_markdown_keys(yaml: &str) -> String {
 fn refinement_to_yaml(refinement: &Refinement) -> Option<Value> {
     match refinement {
         Refinement::Prose(text) if text.is_empty() => None,
-        Refinement::Prose(text) => Some(Value::String(text.clone())),
+        Refinement::Prose(text) => Some(Value::String(align_markdown_section(text))),
         Refinement::Claims(claims) => {
             Some(Value::Sequence(claims.iter().map(claim_to_yaml).collect()))
         }
@@ -197,11 +212,12 @@ fn refinement_to_yaml(refinement: &Refinement) -> Option<Value> {
 }
 
 fn claim_to_yaml(claim: &Claim) -> Value {
+    let text = align_markdown_section(&claim.text);
     if claim.refinement.is_empty_prose() {
-        return Value::String(claim.text.clone());
+        return Value::String(text);
     }
     let mut map = Mapping::new();
-    mapping_insert(&mut map, "text", Value::String(claim.text.clone()));
+    mapping_insert(&mut map, "text", Value::String(text));
     if let Some(nested) = refinement_to_yaml(&claim.refinement) {
         mapping_insert(&mut map, "refinement", nested);
     }
@@ -731,5 +747,91 @@ mod tests {
         assert!(second.written_paths.is_empty());
         assert_eq!(second.skipped_paths, vec![file_path]);
         let _ = fs::remove_dir_all(&project_root);
+    }
+
+    #[shallgraph::verifies("GRD-SYS-022")]
+    #[test]
+    fn aligns_markdown_tables_in_refinement_claims_and_rationale() {
+        let mut r = req(
+            "GRD-SYS-022",
+            "Tables",
+            "The formatter shall align Markdown tables.",
+        );
+        r.refinement = Refinement::Claims(vec![
+            Claim {
+                text: "see the table".into(),
+                refinement: Refinement::Prose(
+                    "\
+| Key | Meaning |\n\
+| --- | --- |\n\
+| a | alpha |\n\
+| bb | beta |\n\
+\n\
+```\n\
+| a | bb |\n\
+| --- | --- |\n\
+| c | d |\n\
+```"
+                    .into(),
+                ),
+            },
+            Claim {
+                text: "\
+| a | bb |\n\
+| --- | --- |\n\
+| c | d |"
+                    .into(),
+                refinement: Refinement::default(),
+            },
+        ]);
+        r.attributes = Some(IndexMap::from([(
+            "rationale".into(),
+            serde_json::json!(
+                "\
+| Left | Right |\n\
+| :--- | ----: |\n\
+| a | b |\n\
+| aa | cc |"
+            ),
+        )]));
+
+        let once = format_requirement_to_yaml(&r);
+        let parsed =
+            parse_requirement_content(&once, Path::new(&format!("/x{REQUIREMENT_FILE_EXTENSION}")))
+                .unwrap();
+        let Refinement::Claims(claims) = &parsed.refinement else {
+            panic!("expected a claim list:\n{once}");
+        };
+        let Refinement::Prose(nested) = &claims[0].refinement else {
+            panic!("expected nested prose:\n{once}");
+        };
+        assert!(
+            nested.contains(
+                "| Key | Meaning |\n| --- | ------- |\n| a   | alpha   |\n| bb  | beta    |"
+            ),
+            "{nested}"
+        );
+        assert!(
+            nested.contains("| a | bb |\n| --- | --- |\n| c | d |"),
+            "{nested}"
+        );
+        assert_eq!(
+            claims[1].text,
+            "| a   | bb  |\n| --- | --- |\n| c   | d   |"
+        );
+        let rationale = parsed
+            .attributes
+            .as_ref()
+            .and_then(|attrs| attrs.get("rationale"))
+            .and_then(|value| value.as_str())
+            .unwrap_or("");
+        assert!(
+            rationale
+                .contains("| Left | Right |\n| :--- | ----: |\n| a    |     b |\n| aa   |    cc |"),
+            "{rationale}"
+        );
+
+        let twice = format_requirement_to_yaml(&parsed.to_requirement());
+        assert_eq!(twice, once);
     }
 }
