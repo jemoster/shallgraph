@@ -16,6 +16,8 @@ pub mod requirement_files;
 pub mod rules;
 pub mod schema;
 pub mod schema_compose;
+#[cfg(feature = "std-fs")]
+pub mod skylark;
 #[cfg(feature = "source-links")]
 pub mod source_links;
 pub mod tags;
@@ -81,6 +83,11 @@ pub use rules::{
 pub use schema::{export_requirement_file_json_schema, parse_requirement_value};
 #[cfg(feature = "std-fs")]
 pub use schema_compose::requirement_schema_compose_options_for_project;
+#[cfg(feature = "std-fs")]
+pub use skylark::{
+    skylark_from_marker_yaml, validate_requirement_ids, SkylarkMarkerConfig,
+    VALIDATE_REQUIREMENT_ID,
+};
 #[cfg(feature = "source-links")]
 pub use source_links::collect_rust_source_links;
 pub use tags::{

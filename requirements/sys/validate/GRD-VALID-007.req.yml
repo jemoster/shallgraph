@@ -1,0 +1,24 @@
+id: GRD-VALID-007
+title: Skylark requirement id validation
+require: When the project root marker names a Skylark file, requirement validation shall apply that file to each requirement id.
+refinement: |
+  The project root marker {{ GRD-SYS-007:root_marker_filename }} may contain a top-level `skylark` key. Omitting `skylark` performs no Skylark check. When `skylark` is present it shall be a non-empty string, a path relative to the project root. The path shall name a file. An absolute path, an empty string, a value that is not a string, a missing file, or a path that names something other than a file is a configuration error reported against the project root marker.
+
+  The file shall be a Skylark module and shall define `validate_requirement_id`. Validation calls that function once for each loaded requirement, passing the requirement id. `None` or `True` means the id is valid. `False` means the id is invalid. A string means the id is invalid, and that string is included in the error. A blank string rejects the id the same way as `False`. Any other return value is an error. A missing function, a value that is not a function, or a syntax error is reported against the Skylark file. An error raised while checking one id, or a rejected id, is reported against that requirement file.
+
+  `examples/grd_requirement_id.skylark` is the example program. It accepts an id that starts with `GRD`, followed by one or more tokens of uppercase letters, followed by a three-digit number, with those tokens joined by `-`. `GRD-SOME-010` is valid. `GRD-some_10` is not.
+attributes:
+  rationale: |
+    Projects need a way to state their own requirement-id shape and have validation enforce it.
+  status: active
+satisfied_by:
+  - artifact: crates/shallgraph-core/src/skylark.rs
+    description: Loads the configured Skylark file and calls validate_requirement_id for each requirement id.
+  - artifact: examples/grd_requirement_id.skylark
+    description: Example program for ids such as GRD-SOME-010.
+verified_by:
+  - artifact: crates/shallgraph-core/src/skylark.rs
+    description: Tests cover the example program, marker errors, return values, and load-time checks.
+links:
+  - satisfies: GRD-VALID-001
+  - satisfies: GRD-SYS-007

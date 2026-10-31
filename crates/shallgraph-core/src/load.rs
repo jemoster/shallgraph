@@ -83,13 +83,24 @@ pub fn load_requirements(
     // GRD-SYS-019: custom tag configuration and requirement tag values.
     if let Some(marker_path) = crate::discovery::find_root_marker_path(&root) {
         if let Ok(raw) = std::fs::read_to_string(&marker_path) {
-            let tag_set =
-                crate::tags::custom_tags_from_marker_yaml(&raw, &marker_path.display().to_string());
+            let marker_label = marker_path.display().to_string();
+            let tag_set = crate::tags::custom_tags_from_marker_yaml(&raw, &marker_label);
             errors.extend(tag_set.errors.clone());
             errors.extend(crate::tags::validate_requirement_tags(
                 &tag_set,
                 &requirements,
             ));
+            // GRD-VALID-007: optional Skylark program checks each requirement id.
+            let skylark = crate::skylark::skylark_from_marker_yaml(&raw, &marker_label);
+            errors.extend(skylark.errors);
+            if let Some(relative_path) = skylark.relative_path {
+                errors.extend(crate::skylark::validate_requirement_ids(
+                    &root,
+                    &relative_path,
+                    &marker_label,
+                    &requirements,
+                ));
+            }
         }
     }
     Ok(LoadResult {
