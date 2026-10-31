@@ -5,6 +5,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import fs from "node:fs";
 import * as path from "node:path";
 import * as vscode from "vscode";
 import {
@@ -18,11 +19,12 @@ import {
 import type { RequirementProfile } from "@shallgraph/core";
 import type { ArtifactLinkRenderOptions, RequirementWithSource } from "@shallgraph/core";
 import { resolveRequirementPath } from "./link-resolver.js";
+import { requirementLineInFile } from "./requirement-links.js";
 import {
   buildRenderedErrorHtml,
   buildRenderedWebviewHtml,
   combineRequirementHtml,
-  requirementIdFromHashHref,
+  requirementIdFromLinkHref,
 } from "./rendered-html.js";
 
 export const RENDERED_VIEW_TYPE = "shallgraph.requirementRendered";
@@ -140,21 +142,37 @@ async function openRequirementAsYaml(
   fromUri: vscode.Uri,
   log: (message: string) => void
 ): Promise<void> {
-  const id = requirementIdFromHashHref(`#${requirementId}`) ?? requirementId.trim();
-  const folder =
-    vscode.workspace.getWorkspaceFolder(fromUri) ?? vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
-    log("[ShallGraph] No workspace folder; cannot open " + id);
-    vscode.window.showErrorMessage("ShallGraph: Open a workspace folder first.");
+  const id =
+    requirementIdFromLinkHref(requirementId.startsWith("#") ? requirementId : `#${requirementId}`) ??
+    requirementIdFromLinkHref(requirementId);
+  if (!id) {
+    log("[ShallGraph] Not a requirement link: " + requirementId);
     return;
   }
-  const targetPath = await resolveRequirementPath(folder.uri.fsPath, id, log);
+  const startDir = path.dirname(fromUri.fsPath);
+  const targetPath = await resolveRequirementPath(startDir, id, log);
   if (!targetPath) {
     log("[ShallGraph] Requirement not found: " + id);
     vscode.window.showErrorMessage(`ShallGraph: Requirement not found: ${id}`);
     return;
   }
-  await switchRequirementEditor(vscode.Uri.file(targetPath), DEFAULT_TEXT_EDITOR);
+  const uri = vscode.Uri.file(targetPath);
+  await switchRequirementEditor(uri, DEFAULT_TEXT_EDITOR);
+  let line = 0;
+  try {
+    line = requirementLineInFile(fs.readFileSync(targetPath, "utf8"), id);
+  } catch {
+    line = 0;
+  }
+  const doc = await vscode.workspace.openTextDocument(uri);
+  const safeLine = Math.min(line, Math.max(0, doc.lineCount - 1));
+  const at = doc.lineAt(safeLine).text.indexOf(id);
+  const pos = new vscode.Position(safeLine, at >= 0 ? at : 0);
+  await vscode.window.showTextDocument(doc, {
+    viewColumn: vscode.ViewColumn.Active,
+    preview: false,
+    selection: new vscode.Range(pos, pos),
+  });
 }
 
 /** GRD-VSC-006: Custom editor shows report HTML and never writes the requirement file. */

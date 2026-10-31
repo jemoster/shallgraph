@@ -2,6 +2,7 @@
  * GRD-VSC-007: Hover shows requirement title for requirement ids in YAML text (links and plain references).
  */
 import fs from "node:fs";
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { parseRequirementDocuments } from "@shallgraph/core";
 import { resolveRequirementPath, type LogFn } from "./link-resolver.js";
@@ -20,10 +21,6 @@ export function registerRequirementHoverProvider(
       position: vscode.Position,
       token: vscode.CancellationToken
     ): Promise<vscode.Hover | undefined> {
-      const folder = vscode.workspace.getWorkspaceFolder(document.uri);
-      if (!folder) {
-        return undefined;
-      }
       const lineText = document.lineAt(position.line).text;
       const id = findRequirementIdAtLinePosition(lineText, position.character);
       if (!id) {
@@ -32,7 +29,7 @@ export function registerRequirementHoverProvider(
       if (token.isCancellationRequested) {
         return undefined;
       }
-      const targetPath = await resolveRequirementPath(folder.uri.fsPath, id, log);
+      const targetPath = await resolveRequirementPath(path.dirname(document.uri.fsPath), id, log);
       if (!targetPath) {
         return undefined;
       }
