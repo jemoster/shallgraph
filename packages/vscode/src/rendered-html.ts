@@ -25,6 +25,50 @@ export function requirementIdFromHashHref(href: string): string | undefined {
   }
 }
 
+/**
+ * GRD-VSC-003: Requirement id from a report link.
+ * Hash links (`#GRD-SYS-001`, including a citation suffix) and relative page links
+ * (`GRD-SYS-001.html`). Absolute http(s) links stay ordinary links.
+ *
+ * Nested helpers stay inside this function so the rendered view can install the
+ * same function in the webview via `toString()`.
+ */
+export function requirementIdFromLinkHref(href: string): string | undefined {
+  function idFromFragment(fragment: string): string | undefined {
+    let raw: string;
+    try {
+      raw = decodeURIComponent(fragment).trim();
+    } catch {
+      return undefined;
+    }
+    const paren = raw.indexOf("(");
+    if (paren >= 0) raw = raw.slice(0, paren).trim();
+    if (!/^[A-Za-z0-9][A-Za-z0-9-]*$/.test(raw)) return undefined;
+    return raw;
+  }
+  function idFromHtmlFilename(pathPart: string): string | undefined {
+    const noQuery = pathPart.split("?")[0] || "";
+    let decoded: string;
+    try {
+      decoded = decodeURIComponent(noQuery);
+    } catch {
+      return undefined;
+    }
+    const base = decoded.split("/").pop() || "";
+    const match = /^([A-Za-z0-9][A-Za-z0-9]*-[A-Za-z0-9-]+)\.html$/i.exec(base);
+    return match ? match[1] : undefined;
+  }
+  const trimmed = href.trim();
+  if (!trimmed || /^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return undefined;
+  if (trimmed.charAt(0) === "#") return idFromFragment(trimmed.slice(1));
+  const hashAt = trimmed.indexOf("#");
+  const pathPart = hashAt >= 0 ? trimmed.slice(0, hashAt) : trimmed;
+  const fromFile = idFromHtmlFilename(pathPart);
+  if (fromFile) return fromFile;
+  if (hashAt >= 0) return idFromFragment(trimmed.slice(hashAt + 1));
+  return undefined;
+}
+
 function contentSecurityPolicy(cspSource: string, nonce: string): string {
   return [
     `default-src 'none'`,
@@ -47,17 +91,21 @@ function linkScript(nonce: string): string {
   document.addEventListener("scroll", function() {
     vscode.setState({ scrollTop: document.documentElement.scrollTop || document.body.scrollTop || 0 });
   }, true);
-  document.body.addEventListener("click", function(e) {
-    var t = e.target;
-    if (!t || !t.closest) return;
-    var a = t.closest('a[href^="#"]');
+  const requirementIdFromLinkHref = ${requirementIdFromLinkHref.toString()};
+  document.addEventListener("click", function(e) {
+    var node = e.target;
+    var el = node && node.nodeType === 1 ? node : node && node.parentElement;
+    if (!el || !el.closest) return;
+    var a = el.closest("a[href]");
     if (!a) return;
     var href = a.getAttribute("href");
-    if (!href || href.length < 2) return;
+    if (!href) return;
+    var id = requirementIdFromLinkHref(href);
+    if (!id) return;
     e.preventDefault();
     e.stopPropagation();
-    vscode.postMessage({ type: "openRequirement", requirementId: href.slice(1) });
-  });
+    vscode.postMessage({ type: "openRequirement", requirementId: id });
+  }, true);
 })();
 </script>`;
 }

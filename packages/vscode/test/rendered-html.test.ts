@@ -7,6 +7,7 @@ import {
   buildRenderedWebviewHtml,
   combineRequirementHtml,
   requirementIdFromHashHref,
+  requirementIdFromLinkHref,
 } from "../src/rendered-html";
 
 const options = { cspSource: "https://example.vscode-cdn.net", nonce: "test-nonce" };
@@ -27,7 +28,21 @@ describe("GRD-VSC-003 rendered webview HTML", () => {
     expect(html).toContain('href="#GRD-SYS-001"');
     expect(html).toContain('nonce="test-nonce"');
     expect(html).toContain('type: "openRequirement"');
-    expect(html).toContain("requirementId: href.slice(1)");
+    expect(html).toContain("requirementId: id");
+    expect(html).toContain("parentElement");
+    expect(html).toContain("nodeType === 1");
+  });
+
+  it("reads a requirement id from hash links and relative requirement pages", () => {
+    expect(requirementIdFromLinkHref("#GRD-SYS-001")).toBe("GRD-SYS-001");
+    expect(requirementIdFromLinkHref("#GRD%2DVSC-003")).toBe("GRD-VSC-003");
+    expect(requirementIdFromLinkHref("#GRD-SYS-001(a)(1)")).toBe("GRD-SYS-001");
+    expect(requirementIdFromLinkHref("GRD-PAGE-002.html")).toBe("GRD-PAGE-002");
+    expect(requirementIdFromLinkHref("./GRD-PAGE-002.html")).toBe("GRD-PAGE-002");
+    expect(requirementIdFromLinkHref("https://github.com/acme/repo/blob/abc/file.ts")).toBeUndefined();
+    expect(requirementIdFromLinkHref("https://example.com/GRD-PAGE-002.html")).toBeUndefined();
+    expect(requirementIdFromLinkHref("index.html")).toBeUndefined();
+    expect(requirementIdFromLinkHref("#")).toBeUndefined();
   });
 });
 
