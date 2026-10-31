@@ -24,10 +24,12 @@ import {
   combineRequirementHtml,
   requirementIdFromHashHref,
 } from "./rendered-html.js";
-
-export const RENDERED_VIEW_TYPE = "shallgraph.requirementRendered";
-export const SHOW_RENDERED_COMMAND = "shallgraph.requirement.showRendered";
-export const SHOW_SOURCE_COMMAND = "shallgraph.requirement.showSource";
+export {
+  RENDERED_VIEW_TYPE,
+  SHOW_RENDERED_COMMAND,
+  SHOW_SOURCE_COMMAND,
+} from "./requirement-view-kind.js";
+import { RENDERED_VIEW_TYPE } from "./requirement-view-kind.js";
 
 /** GRD-VSC-003: Reopen this file with the text editor (`default`) or the rendered custom editor. */
 export const DEFAULT_TEXT_EDITOR = "default";
@@ -160,13 +162,17 @@ async function openRequirementAsYaml(
 /** GRD-VSC-006: Custom editor shows report HTML and never writes the requirement file. */
 export class RequirementRenderedEditorProvider implements vscode.CustomReadonlyEditorProvider {
   constructor(
-    private readonly log: (message: string) => void
+    private readonly log: (message: string) => void,
+    private readonly onViewStateChange?: () => void
   ) {}
 
-  static register(log: (message: string) => void): vscode.Disposable {
+  static register(
+    log: (message: string) => void,
+    onViewStateChange?: () => void
+  ): vscode.Disposable {
     return vscode.window.registerCustomEditorProvider(
       RENDERED_VIEW_TYPE,
-      new RequirementRenderedEditorProvider(log),
+      new RequirementRenderedEditorProvider(log, onViewStateChange),
       { webviewOptions: { retainContextWhenHidden: true } }
     );
   }
@@ -222,9 +228,16 @@ export class RequirementRenderedEditorProvider implements vscode.CustomReadonlyE
         }
       })
     );
+    // GRD-VSC-003: Custom editors do not always fire onDidChangeActiveTextEditor; refresh the
+    // YAML ↔ rendered toggle when this panel becomes active or inactive.
+    if (this.onViewStateChange) {
+      subscriptions.push(webviewPanel.onDidChangeViewState(() => this.onViewStateChange?.()));
+      this.onViewStateChange();
+    }
     webviewPanel.onDidDispose(() => {
       if (timer) clearTimeout(timer);
       for (const sub of subscriptions) sub.dispose();
+      this.onViewStateChange?.();
     });
 
     await renderNow();
