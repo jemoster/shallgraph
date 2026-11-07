@@ -1046,6 +1046,19 @@ const REPORT_CSS: &str = r#"
     @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
 "#;
 
+fn resolve_sidebar_title(
+    text: &str,
+    current_req_id: &str,
+    by_id: &HashMap<String, &RequirementWithSource>,
+) -> String {
+    let segments = resolve_to_segments(text, current_req_id, by_id);
+    let mut resolved = String::new();
+    for segment in segments {
+        resolved.push_str(&escape_html(&segment.text));
+    }
+    resolved
+}
+
 fn report_sidebar(
     requirements: &[RequirementWithSource],
     by_id: &HashMap<String, &RequirementWithSource>,
@@ -1071,8 +1084,7 @@ fn report_sidebar(
     for (group, items) in groups {
         html.push_str(&format!("<section class=\"rq-group\"><h2 class=\"rq-group-title\">{}</h2><ul class=\"rq-nav-list\">", escape_html(&group)));
         for requirement in items {
-            let title =
-                resolve_and_render_text(&requirement.title, &requirement.id, by_id, false, links);
+            let title = resolve_sidebar_title(&requirement.title, &requirement.id, by_id);
             html.push_str(&format!("<li><a class=\"rq-nav-item\" data-rq-key=\"{}\" href=\"{}\"><span class=\"rq-nav-id\">{}</span><span class=\"rq-nav-title\">{}</span></a></li>", escape_html(&requirement.id), escape_html(&links.requirement_href(&requirement.id)), escape_html(&requirement.id), title));
         }
         html.push_str("</ul></section>");
@@ -1084,21 +1096,42 @@ fn report_shell_start(sidebar: &str, count: usize) -> String {
     format!("<div class=\"rq-root\"><nav class=\"rq-sidebar\" aria-label=\"Requirements\"><div class=\"rq-sidebar-header\"><div class=\"rq-sidebar-heading\"><h1>Requirements</h1><span class=\"rq-count\">{count}</span></div><div class=\"rq-search-wrap\"><label for=\"rq-search\" class=\"sr-only\">Search requirements</label><span class=\"rq-search-icon\" aria-hidden=\"true\">⌕</span><input id=\"rq-search\" class=\"rq-search\" type=\"search\" placeholder=\"Filter by ID or title\"></div></div><div class=\"rq-nav\">{sidebar}</div></nav><main class=\"rq-main\"><article class=\"rq-article\">")
 }
 
+const REPORT_FILTER_SCRIPT: &str = r#"<script type="application/javascript">
+(function () {
+  var input = document.getElementById('rq-search');
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-rq-key]'));
+  function filter() {
+    var q = (input.value || '').trim().toLowerCase();
+    items.forEach(function (item) {
+      item.parentElement.hidden = !!q && item.textContent.toLowerCase().indexOf(q) < 0;
+    });
+  }
+  if (input) input.addEventListener('input', filter);
+}());
+</script>"#;
+
 const REPORT_SCRIPT: &str = r#"<script type="application/javascript">
 (function () {
   var input = document.getElementById('rq-search');
   var items = Array.prototype.slice.call(document.querySelectorAll('[data-rq-key]'));
   var sections = Array.prototype.slice.call(document.querySelectorAll('.requirement-detail'));
+  function sectionForFragment(fragment) {
+    if (!fragment) return sections[0];
+    var target = document.getElementById(fragment);
+    if (!target) return sections[0];
+    return target.closest('.requirement-detail') || sections[0];
+  }
   function select(id, updateHash) {
-    var found = false;
-    items.forEach(function (item) { var on = item.getAttribute('data-rq-key') === id; item.setAttribute('aria-current', on ? 'page' : 'false'); if (on) found = true; });
-    sections.forEach(function (section) { section.hidden = section.id !== id; });
-    if (found && updateHash && history.replaceState) history.replaceState(null, '', '#' + encodeURIComponent(id));
+    var section = sectionForFragment(id);
+    var selected = section ? section.id : '';
+    items.forEach(function (item) { var on = item.getAttribute('data-rq-key') === selected; item.setAttribute('aria-current', on ? 'page' : 'false'); });
+    sections.forEach(function (candidate) { candidate.hidden = candidate !== section; });
+    if (section && updateHash && history.replaceState) history.replaceState(null, '', '#' + encodeURIComponent(id || selected));
   }
   function filter() { var q = (input.value || '').trim().toLowerCase(); items.forEach(function (item) { var text = item.textContent.toLowerCase(); item.parentElement.hidden = !!q && text.indexOf(q) < 0; }); }
   if (input) input.addEventListener('input', filter);
   items.forEach(function (item) { item.addEventListener('click', function () { var id = item.getAttribute('data-rq-key'); if (sections.length) { select(id, true); if (window.innerWidth < 900) document.querySelector('.rq-main').scrollIntoView({behavior:'smooth'}); } }); });
-  if (sections.length) { var initial = decodeURIComponent(location.hash.slice(1)); select(initial && document.getElementById(initial) ? initial : sections[0].id, false); window.addEventListener('hashchange', function () { select(decodeURIComponent(location.hash.slice(1)), false); }); }
+  if (sections.length) { select(decodeURIComponent(location.hash.slice(1)), false); window.addEventListener('hashchange', function () { select(decodeURIComponent(location.hash.slice(1)), false); }); }
 }());
 </script>"#;
 
@@ -1267,6 +1300,7 @@ pub fn generate_requirement_index_page_html(
 </head>
 <body>
 <p hidden>Total: {count}</p><div class="rq-root"><nav class="rq-sidebar" aria-label="Requirements"><div class="rq-sidebar-header"><div class="rq-sidebar-heading"><h1>Requirements</h1><span class="rq-count">{count}</span></div><div class="rq-search-wrap"><label for="rq-search" class="sr-only">Search requirements</label><input id="rq-search" class="rq-search" type="search" placeholder="Filter by ID or title"></div></div><div class="rq-nav">{sidebar}</div></nav><main class="rq-main"><article class="rq-article"><h2>Index</h2>{index_html}</article></main></div>
+{REPORT_FILTER_SCRIPT}
 </body>
 </html>"#,
         count = requirements.len(),
@@ -1274,6 +1308,7 @@ pub fn generate_requirement_index_page_html(
         index_html = index_html,
         REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
         REPORT_CSS = REPORT_CSS,
+        REPORT_FILTER_SCRIPT = REPORT_FILTER_SCRIPT,
     )
 }
 
@@ -1338,6 +1373,7 @@ pub fn generate_requirement_page_html(
     .parameters-table th, .parameters-table td {{ padding: 0.25rem 0.5rem; text-align: left; border: 1px solid #ddd; }}
     .parameters-table th {{ font-weight: 600; color: #444; background: #f8f8f8; }}
     .index-link {{ margin: 0 0 1rem; }}
+    body {{ max-width: none; margin: 0; padding: 0; }}
     {REPORT_CSS}
   </style>
 </head>
@@ -1345,12 +1381,14 @@ pub fn generate_requirement_page_html(
 {shell}{index_link}
 {detail}
 </article></main></div>
+{REPORT_FILTER_SCRIPT}
 </body>
 </html>"#,
         id = escape_html(&requirement.id),
         shell = report_shell_start(&sidebar, list.len()),
         REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
         REPORT_CSS = REPORT_CSS,
+        REPORT_FILTER_SCRIPT = REPORT_FILTER_SCRIPT,
     )
 }
 
