@@ -23,7 +23,7 @@ test("basic requirements browser matches the desktop reference", async ({ page }
   const file = resolve(root, reports[0][1]);
   expect(existsSync(file)).toBe(true);
   await page.goto(`file://${file}`);
-  await expect(page.locator(".rq-root")).toHaveScreenshot("basic-desktop.png", { fullPage: true });
+  await expect(page).toHaveScreenshot("basic-desktop.png", { fullPage: true });
 });
 
 test("basic requirements browser is usable on mobile", async ({ page }) => {
@@ -31,7 +31,7 @@ test("basic requirements browser is usable on mobile", async ({ page }) => {
   await page.goto(`file://${file}`);
   await page.getByPlaceholder("Filter by ID or title").fill("login");
   await expect(page.locator(".rq-nav-item:visible")).toHaveCount(2);
-  await expect(page.locator(".rq-root")).toHaveScreenshot("basic-mobile.png", { fullPage: true });
+  await expect(page).toHaveScreenshot("basic-mobile.png", { fullPage: true });
 });
 
 test("rust report exposes traceability links", async ({ page }) => {
@@ -39,5 +39,5 @@ test("rust report exposes traceability links", async ({ page }) => {
   await page.goto(`file://${file}`);
   await page.locator(".rq-nav-item").first().click();
   await expect(page.locator(".requirement-detail:visible")).toContainText("Satisfied by");
-  await expect(page.locator(".rq-root")).toHaveScreenshot("rust-traceability.png", { fullPage: true });
+  await expect(page).toHaveScreenshot("rust-traceability.png", { fullPage: true });
 });
