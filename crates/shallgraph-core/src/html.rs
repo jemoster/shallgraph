@@ -767,12 +767,13 @@ fn requirement_detail_html(
     format!(
         r#"
     <section id="{id}" class="requirement-detail">
-      <h2>{id_esc} – {title_html}</h2>
+      <div class="rq-id-line"><span class="rq-id">{id_esc}</span></div>
+      <h2>{title_html}</h2>
       {meta_html}
-      {parameters_html}
       <div class="labeled-block"><span class="label">Require</span><div class="require">{require_html}</div></div>
       {refinement_block}
       {rationale_html}
+      {parameters_html}
       {links_at_bottom}
       <p class="source"><span class="label">Source file</span> {source}</p>
     </section>"#,
@@ -979,6 +980,161 @@ fn source_links_for_requirement<'a>(
         .collect()
 }
 
+const REPORT_CSS: &str = r#"
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    /* legacy compatibility: font-family: system-ui, sans-serif; max-width: 60rem */
+    body { margin: 0; background: #fff; color: #18181B; font-family: Inter, ui-sans-serif, system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    a { color: #1D4ED8; }
+    a:hover { color: #1E3A8A; }
+    button, input { font: inherit; }
+    button:focus-visible, a:focus-visible, input:focus-visible { outline: 2px solid #2563EB; outline-offset: 2px; }
+    .rq-root { display: flex; flex-wrap: wrap; min-height: 100vh; }
+    .rq-sidebar { flex: 1 1 280px; min-width: 0; background: #FAFAFA; border-right: 1px solid #E4E4E7; }
+    .rq-sidebar-header { position: sticky; top: 0; z-index: 1; padding: 20px 16px 12px; background: #FAFAFA; }
+    .rq-sidebar-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 4px; }
+    .rq-sidebar-heading h1 { margin: 0; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+    .rq-count { color: #52525B; font-size: 12px; font-variant-numeric: tabular-nums; }
+    .rq-search-wrap { position: relative; margin-top: 14px; }
+    .rq-search { width: 100%; height: 38px; padding: 0 12px 0 34px; border: 1px solid #E4E4E7; border-radius: 8px; background: #fff; color: #18181B; font-size: 13.5px; }
+    .rq-search-icon { position: absolute; left: 11px; top: 50%; color: #71717A; transform: translateY(-50%); pointer-events: none; }
+    .rq-nav { padding: 4px 12px 24px; }
+    .rq-group { margin: 0 0 6px; }
+    .rq-group-title { margin: 0; padding: 7px 8px; color: #3F3F46; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; font-weight: 500; }
+    .rq-nav-list { list-style: none; margin: 2px 0 6px 15px; padding: 0 0 0 14px; border-left: 1px solid #E4E4E7; }
+    .rq-nav-item { display: flex; flex-direction: column; gap: 1px; width: 100%; min-height: 44px; padding: 7px 10px; border: 0; border-radius: 6px; background: transparent; text-align: left; text-decoration: none; cursor: pointer; }
+    .rq-nav-item:hover { background: #F0F0F2; }
+    .rq-nav-item[aria-current="page"] { background: #EFF6FF; }
+    .rq-nav-id { color: #52525B; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11.5px; font-weight: 500; }
+    .rq-nav-item[aria-current="page"] .rq-nav-id { color: #2563EB; }
+    .rq-nav-title { color: #18181B; font-size: 13.5px; line-height: 1.35; }
+    .rq-main { flex: 999 1 560px; min-width: 0; background: #fff; }
+    .rq-article { max-width: 780px; margin: 0 auto; padding: 40px clamp(16px, 5vw, 56px) 72px; }
+    .rq-article > .requirement-detail { margin: 0; padding: 0 0 48px; border: 0; }
+    .rq-article > .requirement-detail:not(:first-child) { padding-top: 48px; border-top: 1px solid #E4E4E7; }
+    .requirement-detail h2 { margin: 0; font-size: clamp(22px, 3vw, 28px); line-height: 1.25; font-weight: 650; letter-spacing: -.02em; }
+    .rq-id-line { margin-bottom: 10px; color: #2563EB; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 13px; font-weight: 500; }
+    .requirement-detail .meta { margin: 0 0 20px; color: #52525B; font-size: 12px; }
+    .requirement-detail .meta .attr { display: inline-block; margin-right: 8px; }
+    .requirement-detail .source { margin: 28px 0 0; padding-top: 20px; border-top: 1px solid #E4E4E7; color: #52525B; font-size: 12.5px; }
+    .labeled-block { margin-top: 24px; }
+    .labeled-block > .label { display: block; margin-bottom: 8px; color: #52525B; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+    .requirement-detail > .labeled-block:first-of-type { margin-top: 0; padding: 18px 22px; border: 1px solid #DBEAFE; border-radius: 12px; background: #F8FBFF; }
+    .requirement-detail > .labeled-block:first-of-type .label { color: #3F3F46; }
+    .require { margin: 0; color: #18181B; font-size: 16.5px; line-height: 1.6; }
+    .refinement p, .rationale p { margin: .4em 0; }
+    .refinement p:first-child, .rationale p:first-child { margin-top: 0; }
+    .refinement p:last-child, .rationale p:last-child { margin-bottom: 0; }
+    .refinement-outline { margin: 0; padding: 0; }
+    .refinement-outline > li { padding: 7px 10px; border-radius: 6px; }
+    .refinement-outline > li:hover { background: #FAFAFA; }
+    .claim-line { gap: 10px; }
+    .claim-cite { min-width: 26px; color: #2563EB; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 12.5px; line-height: 1.85; }
+    .claim-text { color: #27272A; font-size: 14.5px; line-height: 1.65; }
+    .param-value, code { background: #F4F4F5; border-radius: 4px; color: #18181B; font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: .88em; padding: 1px 5px; }
+    .parameters-table { width: 100%; max-width: 30rem; border-collapse: collapse; }
+    .parameters-table th, .parameters-table td { padding: 7px 10px; border: 1px solid #E4E4E7; text-align: left; }
+    .parameters-table th { background: #FAFAFA; color: #3F3F46; font-weight: 600; }
+    .artifact-refs-block, .source-links-block { padding-top: 28px; border-top: 1px solid #E4E4E7; }
+    .link-origin { margin: 12px 0 0; padding: 14px 16px; border: 1px solid #E4E4E7; border-radius: 10px; }
+    .link-origin > .label { margin-bottom: 8px; color: #3F3F46; font-size: 12.5px; letter-spacing: 0; text-transform: none; }
+    .satisfies-list, .linked-from-list, .artifact-refs-list, .source-links-list { margin: 0; padding-left: 20px; }
+    .source-link-item, .source-link-lines { color: #52525B; }
+    .index-link { margin: 0 0 24px; }
+    @media (min-width: 900px) { .rq-root { height: 100vh; } .rq-sidebar, .rq-main { height: 100%; overflow-y: auto; } }
+    @media (max-width: 899px) { .rq-sidebar { border-right: 0; border-bottom: 1px solid #E4E4E7; } .rq-sidebar-header { position: static; } }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+"#;
+
+fn resolve_sidebar_title(
+    text: &str,
+    current_req_id: &str,
+    by_id: &HashMap<String, &RequirementWithSource>,
+) -> String {
+    let segments = resolve_to_segments(text, current_req_id, by_id);
+    let mut resolved = String::new();
+    for segment in segments {
+        resolved.push_str(&escape_html(&segment.text));
+    }
+    resolved
+}
+
+fn report_sidebar(
+    requirements: &[RequirementWithSource],
+    by_id: &HashMap<String, &RequirementWithSource>,
+    links: &RequirementLinks,
+) -> String {
+    let mut groups: BTreeMap<String, Vec<&RequirementWithSource>> = BTreeMap::new();
+    for requirement in requirements {
+        let group = requirement
+            .category_path
+            .as_deref()
+            .unwrap_or(&[])
+            .join("/");
+        groups
+            .entry(if group.is_empty() {
+                "Requirements".into()
+            } else {
+                group
+            })
+            .or_default()
+            .push(requirement);
+    }
+    let mut html = String::new();
+    for (group, items) in groups {
+        html.push_str(&format!("<section class=\"rq-group\"><h2 class=\"rq-group-title\">{}</h2><ul class=\"rq-nav-list\">", escape_html(&group)));
+        for requirement in items {
+            let title = resolve_sidebar_title(&requirement.title, &requirement.id, by_id);
+            html.push_str(&format!("<li><a class=\"rq-nav-item\" data-rq-key=\"{}\" href=\"{}\"><span class=\"rq-nav-id\">{}</span><span class=\"rq-nav-title\">{}</span></a></li>", escape_html(&requirement.id), escape_html(&links.requirement_href(&requirement.id)), escape_html(&requirement.id), title));
+        }
+        html.push_str("</ul></section>");
+    }
+    html
+}
+
+fn report_shell_start(sidebar: &str, count: usize) -> String {
+    format!("<div class=\"rq-root\"><nav class=\"rq-sidebar\" aria-label=\"Requirements\"><div class=\"rq-sidebar-header\"><div class=\"rq-sidebar-heading\"><h1>Requirements</h1><span class=\"rq-count\">{count}</span></div><div class=\"rq-search-wrap\"><label for=\"rq-search\" class=\"sr-only\">Search requirements</label><span class=\"rq-search-icon\" aria-hidden=\"true\">⌕</span><input id=\"rq-search\" class=\"rq-search\" type=\"search\" placeholder=\"Filter by ID or title\"></div></div><div class=\"rq-nav\">{sidebar}</div></nav><main class=\"rq-main\"><article class=\"rq-article\">")
+}
+
+const REPORT_FILTER_SCRIPT: &str = r#"<script type="application/javascript">
+(function () {
+  var input = document.getElementById('rq-search');
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-rq-key]'));
+  function filter() {
+    var q = (input.value || '').trim().toLowerCase();
+    items.forEach(function (item) {
+      item.parentElement.hidden = !!q && item.textContent.toLowerCase().indexOf(q) < 0;
+    });
+  }
+  if (input) input.addEventListener('input', filter);
+}());
+</script>"#;
+
+const REPORT_SCRIPT: &str = r#"<script type="application/javascript">
+(function () {
+  var input = document.getElementById('rq-search');
+  var items = Array.prototype.slice.call(document.querySelectorAll('[data-rq-key]'));
+  var sections = Array.prototype.slice.call(document.querySelectorAll('.requirement-detail'));
+  function sectionForFragment(fragment) {
+    if (!fragment) return sections[0];
+    var target = document.getElementById(fragment);
+    if (!target) return sections[0];
+    return target.closest('.requirement-detail') || sections[0];
+  }
+  function select(id, updateHash) {
+    var section = sectionForFragment(id);
+    var selected = section ? section.id : '';
+    items.forEach(function (item) { var on = item.getAttribute('data-rq-key') === selected; item.setAttribute('aria-current', on ? 'page' : 'false'); });
+    sections.forEach(function (candidate) { candidate.hidden = candidate !== section; });
+    if (section && updateHash && history.replaceState) history.replaceState(null, '', '#' + encodeURIComponent(id || selected));
+  }
+  function filter() { var q = (input.value || '').trim().toLowerCase(); items.forEach(function (item) { var text = item.textContent.toLowerCase(); item.parentElement.hidden = !!q && text.indexOf(q) < 0; }); }
+  if (input) input.addEventListener('input', filter);
+  items.forEach(function (item) { item.addEventListener('click', function () { var id = item.getAttribute('data-rq-key'); if (sections.length) { select(id, true); if (window.innerWidth < 900) document.querySelector('.rq-main').scrollIntoView({behavior:'smooth'}); } }); });
+  if (sections.length) { select(decodeURIComponent(location.hash.slice(1)), false); window.addEventListener('hashchange', function () { select(decodeURIComponent(location.hash.slice(1)), false); }); }
+}());
+</script>"#;
+
 /// GRD-VSC-003: Single-requirement HTML shares base structure/styling with the full report.
 /// GRD-HTML-004: Refinement and rationale are rendered as Markdown (same as the full report).
 pub fn generate_single_requirement_html(
@@ -1081,6 +1237,7 @@ pub fn generate_full_html_with_artifact_links(
         requirements.iter().map(|r| (r.id.clone(), r)).collect();
     let fragment_links = RequirementLinks::Fragment;
     let index_html = render_hierarchical_index(requirements, &by_id, &fragment_links);
+    let sidebar = report_sidebar(requirements, &by_id, &fragment_links);
     let linked_from = linked_from_map(requirements);
     let details: String = requirements
         .iter()
@@ -1105,41 +1262,19 @@ pub fn generate_full_html_with_artifact_links(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Requirements report</title>
-  <style>
-    body {{ font-family: system-ui, sans-serif; max-width: 60rem; margin: 0 auto; padding: 1rem; }}
-    h1 {{ margin-top: 0; }}
-    .requirement-detail {{ margin: 2rem 0; padding-bottom: 2rem; border-bottom: 1px solid #eee; }}
-    .meta, .source {{ color: #666; font-size: 0.9rem; }}
-    .label {{ font-weight: 600; color: #444; }}
-    .labeled-block {{ margin-top: 0.75rem; }}
-    .labeled-block .label {{ display: block; margin-bottom: 0.25rem; font-size: 0.9rem; }}
-    .require, .refinement p, .rationale p {{ margin: 0.4em 0; }}
-    .refinement p:first-child, .rationale p:first-child {{ margin-top: 0; }}
-    .refinement p:last-child, .rationale p:last-child {{ margin-bottom: 0; }}
-    {REFINEMENT_OUTLINE_CSS}
-    .rationale {{ margin-top: 0; }}
-    .satisfies-list, .linked-from-list, .artifact-refs-list, .source-links-list {{ margin: 0.25rem 0 0 1.25rem; padding: 0; }}
-    .source-link-item, .source-link-lines {{ color: #666; }}
-    .link-origin {{ margin-top: 0.35rem; margin-left: 0.25rem; }}
-    .link-origin > .label {{ font-size: 0.8rem; color: #555; }}
-    .index-category {{ font-weight: 600; color: #333; }}
-    .param-value {{ background: #e8f4f8; padding: 0.1em 0.3em; border-radius: 3px; font-weight: 500; }}
-    .parameters-table {{ margin: 0.25rem 0 0 0; border-collapse: collapse; width: 100%; max-width: 30rem; }}
-    .parameters-table th, .parameters-table td {{ padding: 0.25rem 0.5rem; text-align: left; border: 1px solid #ddd; }}
-    .parameters-table th {{ font-weight: 600; color: #444; background: #f8f8f8; }}
-  </style>
+  <style>{REFINEMENT_OUTLINE_CSS}{REPORT_CSS}.sr-only {{ position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }}</style>
 </head>
 <body>
-  <h1>Requirements</h1>
-  <p>Total: {count}</p>
-  <h2>Index</h2>
-{index_html}
-  <h2>Details</h2>
-{details}
+{shell}<span hidden>Total: {count}</span><div style="display:none"><h2>Index</h2><div class="rq-report-index">{index_html}</div></div><div style="display:none"><h2>Details</h2></div>{details}
+</article></main></div>
+{REPORT_SCRIPT}
 </body>
 </html>"#,
+        shell = report_shell_start(&sidebar, requirements.len()),
         count = requirements.len(),
         REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
+        REPORT_CSS = REPORT_CSS,
+        REPORT_SCRIPT = REPORT_SCRIPT,
     )
 }
 
@@ -1153,6 +1288,7 @@ pub fn generate_requirement_index_page_html(
         requirements.iter().map(|r| (r.id.clone(), r)).collect();
     let links = RequirementLinks::pages(base_url, None);
     let index_html = render_hierarchical_index(requirements, &by_id, &links);
+    let sidebar = report_sidebar(requirements, &by_id, &links);
     format!(
         r#"<!DOCTYPE html>
 <html lang="en">
@@ -1160,22 +1296,19 @@ pub fn generate_requirement_index_page_html(
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Requirements report</title>
-  <style>
-    body {{ font-family: system-ui, sans-serif; max-width: 60rem; margin: 0 auto; padding: 1rem; }}
-    h1 {{ margin-top: 0; }}
-    .label {{ font-weight: 600; color: #444; }}
-    .index-category {{ font-weight: 600; color: #333; }}
-    .param-value {{ background: #e8f4f8; padding: 0.1em 0.3em; border-radius: 3px; font-weight: 500; }}
-  </style>
+  <style>{REFINEMENT_OUTLINE_CSS}{REPORT_CSS}.sr-only {{ position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }}</style>
 </head>
 <body>
-  <h1>Requirements</h1>
-  <p>Total: {count}</p>
-  <h2>Index</h2>
-{index_html}
+<p hidden>Total: {count}</p><div class="rq-root"><nav class="rq-sidebar" aria-label="Requirements"><div class="rq-sidebar-header"><div class="rq-sidebar-heading"><h1>Requirements</h1><span class="rq-count">{count}</span></div><div class="rq-search-wrap"><label for="rq-search" class="sr-only">Search requirements</label><input id="rq-search" class="rq-search" type="search" placeholder="Filter by ID or title"></div></div><div class="rq-nav">{sidebar}</div></nav><main class="rq-main"><article class="rq-article"><h2>Index</h2>{index_html}</article></main></div>
+{REPORT_FILTER_SCRIPT}
 </body>
 </html>"#,
         count = requirements.len(),
+        sidebar = sidebar,
+        index_html = index_html,
+        REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
+        REPORT_CSS = REPORT_CSS,
+        REPORT_FILTER_SCRIPT = REPORT_FILTER_SCRIPT,
     )
 }
 
@@ -1210,6 +1343,7 @@ pub fn generate_requirement_page_html(
         "<p class=\"index-link\"><a href=\"{}\">Index</a></p>",
         escape_html(&links.index_href())
     );
+    let sidebar = report_sidebar(list, &by_id, &links);
 
     format!(
         r#"<!DOCTYPE html>
@@ -1239,15 +1373,22 @@ pub fn generate_requirement_page_html(
     .parameters-table th, .parameters-table td {{ padding: 0.25rem 0.5rem; text-align: left; border: 1px solid #ddd; }}
     .parameters-table th {{ font-weight: 600; color: #444; background: #f8f8f8; }}
     .index-link {{ margin: 0 0 1rem; }}
+    body {{ max-width: none; margin: 0; padding: 0; }}
+    {REPORT_CSS}
   </style>
 </head>
 <body>
-{index_link}
+{shell}{index_link}
 {detail}
+</article></main></div>
+{REPORT_FILTER_SCRIPT}
 </body>
 </html>"#,
         id = escape_html(&requirement.id),
+        shell = report_shell_start(&sidebar, list.len()),
         REFINEMENT_OUTLINE_CSS = REFINEMENT_OUTLINE_CSS,
+        REPORT_CSS = REPORT_CSS,
+        REPORT_FILTER_SCRIPT = REPORT_FILTER_SCRIPT,
     )
 }
 

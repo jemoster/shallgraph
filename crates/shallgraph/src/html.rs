@@ -139,6 +139,22 @@ where
         return Ok(false);
     }
 
+    // Render source footers with project-relative paths while retaining the absolute paths
+    // in the loaded model for validation diagnostics and filesystem operations.
+    let render_requirements: Vec<_> = result
+        .requirements
+        .iter()
+        .cloned()
+        .map(|mut requirement| {
+            let source_path = requirement
+                .source_path
+                .strip_prefix(root)
+                .unwrap_or(&requirement.source_path)
+                .to_path_buf();
+            requirement.source_path = source_path;
+            requirement
+        })
+        .collect();
     let known_ids: HashSet<String> = result.requirements.iter().map(|r| r.id.clone()).collect();
     let page_selection = match options.pages.as_deref() {
         None => PageSelection::Combined,
@@ -193,7 +209,7 @@ where
     match &page_selection {
         PageSelection::Combined => {
             let html = profile.generate_full_html(
-                &result.requirements,
+                &render_requirements,
                 &source_links,
                 artifact_links.as_ref(),
             );
@@ -207,12 +223,12 @@ where
         }
         PageSelection::All => {
             let index =
-                profile.generate_requirement_index_page_html(&result.requirements, base_url);
+                profile.generate_requirement_index_page_html(&render_requirements, base_url);
             fs::write(&html_path, index)?;
-            for requirement in &result.requirements {
+            for requirement in &render_requirements {
                 let page = profile.generate_requirement_page_html(
                     requirement,
-                    &result.requirements,
+                    &render_requirements,
                     &source_links,
                     artifact_links.as_ref(),
                     base_url,
@@ -228,8 +244,7 @@ where
             )?;
         }
         PageSelection::One(id) => {
-            let Some(requirement) = result
-                .requirements
+            let Some(requirement) = render_requirements
                 .iter()
                 .find(|requirement| requirement.id == *id)
             else {
@@ -241,7 +256,7 @@ where
             };
             let page = profile.generate_requirement_page_html(
                 requirement,
-                &result.requirements,
+                &render_requirements,
                 &source_links,
                 artifact_links.as_ref(),
                 base_url,

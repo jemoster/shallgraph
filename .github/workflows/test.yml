@@ -25,6 +25,8 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
       - name: Build
         run: npm run build
       # GRD-DEVOPS-002: same package step as the release workflow; catches packaging regressions on PRs.
@@ -32,6 +34,8 @@ jobs:
         run: npm run package -w shallgraph-vscode
       - name: Run tests
         run: npm test
+      - name: Run visual regression tests
+        run: npm run test:visual
 
   rust-test:
     name: cargo test

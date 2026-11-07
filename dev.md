@@ -127,6 +127,16 @@ shallgraph schema
 shallgraph schema --format json-schema --output ./requirement.schema.json
 ```
 
+## HTML visual regression tests
+
+The HTML report layout is covered by Playwright screenshot tests for the basic and Rust sample projects at desktop and mobile viewports. Install the browser once with:
+
+```bash
+npx playwright install chromium
+```
+
+Run the visual tests with `npm run test:visual`. When an intentional design change is made, review and update snapshots with `npm run test:visual:update`; snapshots are stored under `visual-tests/snapshots/`.
+
 ## Pre-commit Hook
 
 Install hook into a target repo:
